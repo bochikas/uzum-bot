@@ -45,13 +45,13 @@ exclude = """
 [tool.isort]
 profile = "wemake"
 default_section = "THIRDPARTY"
-known_first_party = ["bot", "config", "db", "migration"]
+known_first_party = ["bot", "config", "db", "migration", "scheduler"]
 skip_glob = ["**/__pycache__", ".venv", "flake-report", "venv", "**/tests"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 line_length = 120
 
 [tool.autoflake]
-imports = ["sqlalchemy", "aiogram"]
+imports = ["sqlalchemy", "aiogram", "apscheduler"]
 
 [tool.flake8]
 inline-quotes = "\""

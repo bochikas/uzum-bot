@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 class DatabaseSessionManager:
     def __init__(self):
         self._engine: AsyncEngine | None = None
-        self._sessionmaker: async_sessionmaker | None = None
+        self._session_maker: async_sessionmaker | None = None
 
     def init(self, host: str):
         self._engine = create_async_engine(host, future=True, poolclass=None)
-        self._sessionmaker = async_sessionmaker(
+        self._session_maker = async_sessionmaker(
             bind=self._engine, autocommit=False, expire_on_commit=False, autoflush=False
         )
 
@@ -35,7 +35,7 @@ class DatabaseSessionManager:
             raise DatabaseSessionManagerInitError("DatabaseSessionManager not initialized")
         await self._engine.dispose()
         self._engine = None
-        self._sessionmaker = None
+        self._session_maker = None
 
     @contextlib.asynccontextmanager
     async def connect(self) -> AsyncIterator[AsyncConnection]:
@@ -51,10 +51,10 @@ class DatabaseSessionManager:
 
     @contextlib.asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
-        if self._sessionmaker is None:
+        if self._session_maker is None:
             raise DatabaseSessionManagerInitError("DatabaseSessionManager not initialized")
 
-        session = async_scoped_session(self._sessionmaker, scopefunc=current_task)
+        session = async_scoped_session(self._session_maker, scopefunc=current_task)
 
         try:
             yield session()
@@ -107,6 +107,9 @@ class DBClient:
         await self.db_session.commit()
         await self.db_session.refresh(obj)
         return obj
+
+    async def delete_user_product(self, product_id: int) -> None:
+        await self.update_object(Product, object_id=product_id, deleted=True)
 
     async def update_object(self, model: Type[Base], object_id, **kwargs):
         query = await self.db_session.execute(select(model).filter_by(id=object_id))

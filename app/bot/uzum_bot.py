@@ -2,34 +2,21 @@ import logging
 import re
 from urllib.parse import parse_qs, urlparse
 
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import InlineKeyboardButton, KeyboardButton, Message, ReplyKeyboardMarkup
+from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import exc
 
-from bot.schemas import KeyBoardButtonType
+from bot.keyboards import KeyBoardButtonType, main_kb
 from config.settings import app_config
-from db.client import DBClient
+from db.client import DBClient, sessionmanager
 from db.models import Product, User
 
 logger = logging.getLogger(__name__)
-
-
-main_kb = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text=KeyBoardButtonType.ADD_PRODUCT.value)],
-        [KeyboardButton(text=KeyBoardButtonType.DELETE_PRODUCT.value)],
-        [KeyboardButton(text=KeyBoardButtonType.PRODUCT_LIST.value)],
-    ],
-    resize_keyboard=True,
-)
-
-dp = Dispatcher(storage=MemoryStorage())
-bot = Bot(token=app_config.telegram.token.get_secret_value())
 
 
 class BroadcastState(StatesGroup):
@@ -38,107 +25,134 @@ class BroadcastState(StatesGroup):
     product_url = State()
 
 
-@dp.message(CommandStart())
-async def start(message: Message):
-    """Обработка команды старт."""
-
-    async with DBClient() as db_client:
-        user = await db_client.get_user_by_telegram_id(message.from_user.id)
-        if not user:
-            await db_client.create_object(User, telegram_id=message.from_user.id)
-    await message.answer("Привет! Выберите действие:", reply_markup=main_kb)
+async def on_startup(dispatcher):
+    sessionmanager.init(app_config.database_uri)
 
 
-@dp.message(Command("skip"))
-async def skip(message: Message, state: FSMContext):
-    await message.answer("Выберите действие", reply_markup=main_kb)
-    await state.clear()
+async def on_shutdown(dispatcher):
+    await sessionmanager.close()
 
 
-@dp.message(F.text == KeyBoardButtonType.ADD_PRODUCT.value)
-async def add_product(message: Message, state: FSMContext):
-    """Добавить ссылку на товар."""
+class UzumBot:
+    def __init__(self):
+        self.bot = Bot(token=app_config.telegram.token.get_secret_value())
+        self.dp = Dispatcher(storage=MemoryStorage())
+        self.router = Router()
+        self.register_handlers()
+        self.dp.include_router(self.router)
 
-    await state.clear()
-    await state.set_state(BroadcastState.product_url)
-    await message.answer("Введите ссылку")
+    def register_handlers(self):
+        self.router.message.register(self.handle_start, CommandStart())
+        self.router.message.register(self.handle_skip, Command("skip"))
+        self.router.message.register(self.add_product, F.text == KeyBoardButtonType.ADD_PRODUCT.value)
+        self.router.message.register(self.handle_product_url, BroadcastState.product_url)
+        self.router.message.register(self.get_products, F.text == KeyBoardButtonType.PRODUCT_LIST.value)
+        self.router.message.register(self.delete_product, F.text == KeyBoardButtonType.DELETE_PRODUCT.value)
+        self.router.callback_query.register(self.delete_product_callback)
 
+    async def run(self):
+        self.dp.startup.register(on_startup)
+        self.dp.shutdown.register(on_shutdown)
+        await self.dp.start_polling(self.bot)
 
-@dp.message(BroadcastState.product_url)
-async def handle_product_url(message: Message, state: FSMContext):  # noqa WPS217
-    """Обработка сообщения со ссылкой от пользователя."""
+    async def handle_start(self, message: Message):
+        """Обработка команды старт."""
 
-    if not message.text or not message.entities:
-        return await message.answer("Сообщение не распознано. Пожалуйста, введите ссылку или нажмите /skip для отмены.")
-    product_url = None
-    for entity in message.entities:
-        if entity.type == "url":
-            product_url = message.text[entity.offset : entity.offset + entity.length]
+        async with DBClient() as db_client:
+            user = await db_client.get_user_by_telegram_id(message.from_user.id)
+            if not user:
+                await db_client.create_object(User, telegram_id=message.from_user.id)
+        await message.answer("Привет! Выберите действие:", reply_markup=main_kb)
 
-    if not product_url:
-        return await message.answer("Сообщение не распознано. Пожалуйста, введите ссылку или нажмите /skip для отмены.")
+    async def handle_skip(self, message: Message, state: FSMContext):
+        await message.answer("Выберите действие", reply_markup=main_kb)
+        await state.clear()
 
-    parsed_url = urlparse(product_url)
-    captured_value = parse_qs(parsed_url.query)
-    # skuid может и не быть
-    if sku_id := captured_value.get("skuId"):
-        sku_id = sku_id[0]
+    async def add_product(self, message: Message, state: FSMContext):
+        """Добавить ссылку на товар."""
 
-    pattern = re.compile(r"/product/.*?-([\d\-]+)(?:\?|$)")
-    match = pattern.search(parsed_url.path)
-    number = match.group(1)
+        await state.clear()
+        await state.set_state(BroadcastState.product_url)
+        await message.answer("Введите ссылку")
 
-    async with DBClient() as db_client:
-        user = await db_client.get_user_by_telegram_id(message.from_user.id)
-        if not user.active:
-            await db_client.update_object(User, user, active=True)
-        try:
-            await db_client.create_object(Product, user_id=user.id, url=product_url, number=number, sku_id=sku_id)
-            await message.answer(f"Добавлена ссылка {product_url}")
-        except exc.IntegrityError:
-            await message.answer("Вы уже добавляли этот товар")
-        finally:
-            await state.clear()
+    async def handle_product_url(self, message: Message, state: FSMContext):  # noqa WPS217
+        """Обработка сообщения со ссылкой от пользователя."""
 
+        if not message.text or not message.entities:
+            return await message.answer(
+                "Сообщение не распознано. Пожалуйста, введите ссылку или нажмите /skip для отмены."
+            )
+        product_url = None
+        for entity in message.entities:
+            if entity.type == "url":
+                product_url = message.text[entity.offset : entity.offset + entity.length]
 
-@dp.message(F.text == KeyBoardButtonType.PRODUCT_LIST.value)
-async def get_products(message: Message):
-    """Список добавленного товара."""
+        if not product_url:
+            return await message.answer(
+                "Сообщение не распознано. Пожалуйста, введите ссылку или нажмите /skip для отмены."
+            )
 
-    async with DBClient() as db_client:
-        user: User = await db_client.get_user_by_telegram_id(message.from_user.id)
-        products: list[Product] = await db_client.get_products_by_user_id(user.id)
+        parsed_url = urlparse(product_url)
+        captured_value = parse_qs(parsed_url.query)
+        # skuid может и не быть
+        if sku_id := captured_value.get("skuId"):
+            sku_id = sku_id[0]
 
-    if not products:
-        await message.answer("У вас нет добавленного товара.")
-        return
+        pattern = re.compile(r"/product/.*?-([\d\-]+)(?:\?|$)")
+        match = pattern.search(parsed_url.path)
+        number = match.group(1)
 
-    builder = InlineKeyboardBuilder()
-    for product in products:
-        product_title = product.title or product.url
-        title = f"{product_title[:40]}. Цена: {product.price or '?'} сум"
-        builder.row(InlineKeyboardButton(text=title, url=product.url))
+        async with DBClient() as db_client:
+            user = await db_client.get_user_by_telegram_id(message.from_user.id)
+            try:
+                await db_client.create_object(Product, user_id=user.id, url=product_url, number=number, sku_id=sku_id)
+                await message.answer(f"Добавлена ссылка {product_url}")
+            except exc.IntegrityError:
+                await message.answer("Вы уже добавляли этот товар")
+            finally:
+                await state.clear()
 
-    await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
+    async def get_products(self, message: Message):
+        """Список добавленного товара."""
 
+        if not (products := await self._get_user_products(message.from_user.id)):
+            await message.answer("У вас нет добавленного товара.")
+            return
 
-@dp.message(F.text == KeyBoardButtonType.DELETE_PRODUCT.value)
-async def delete_product(message: Message):
-    """Удаление товара."""
+        builder = InlineKeyboardBuilder()
+        for product in products:
+            product_title = product.title or product.url
+            title = f"{product_title[:40]}. Цена: {product.price or '?'} сум"
+            builder.row(InlineKeyboardButton(text=title, url=product.url))
 
-    async with DBClient() as db_client:
-        user: User = await db_client.get_user_by_telegram_id(message.from_user.id)
-        products: list[Product] = await db_client.get_products_by_user_id(user.id)
+        await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
 
-    if not products:
-        await message.answer("У вас нет добавленного товара.")
-        return
+    async def delete_product(self, message: Message):
+        """Удаление товара."""
 
-    builder = InlineKeyboardBuilder()
-    for product in products:
-        product_title = product.title or product.url
-        title = f"{product_title[:40]}. Цена: {product.price or '?'} сум"
-        builder.button(text=title, callback_data=f"delete_{product.id}")
-    builder.adjust(1)
+        if not (products := await self._get_user_products(message.from_user.id)):
+            await message.answer("У вас нет добавленного товара.")
+            return
 
-    await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
+        builder = InlineKeyboardBuilder()
+        for product in products:
+            product_title = product.title or product.url
+            title = f"{product_title[:40]}. Цена: {product.price or '?'} сум"
+            builder.button(text=title, callback_data=f"delete_{product.id}")
+        builder.adjust(1)
+
+        await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
+
+    async def delete_product_callback(self, callback: CallbackQuery):
+        product_id = int(callback.data.replace("delete_", ""))
+        async with DBClient() as db_client:
+            await db_client.delete_user_product(product_id)
+
+        await callback.answer("Товар удален.", show_alert=True)
+        await callback.message.delete()
+
+    async def _get_user_products(self, telegram_id: int) -> list[Product]:
+        async with DBClient() as db_client:
+            user: User = await db_client.get_user_by_telegram_id(telegram_id)
+            products: list[Product] = await db_client.get_products_by_user_id(user.id)
+        return products
