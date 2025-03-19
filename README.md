@@ -1,1 +1,1 @@
-# uzum-bot
+# Uzum price tracker
