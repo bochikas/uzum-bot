@@ -10,7 +10,6 @@ class Scheduler:
 
     def __init__(self) -> None:
         self.scheduler = AsyncIOScheduler()
-
         self.add_all_jobs()
 
     def add_all_jobs(self) -> None:

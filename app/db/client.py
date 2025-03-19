@@ -1,7 +1,7 @@
 import contextlib
 import logging
 from asyncio import current_task
-from typing import AsyncGenerator, AsyncIterator, Iterable, Type
+from typing import AsyncGenerator, AsyncIterator, Iterable, Type, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import (
@@ -19,7 +19,12 @@ from db.models import Product, User
 logger = logging.getLogger(__name__)
 
 
+T = TypeVar("T", bound=Base)
+
+
 class DatabaseSessionManager:
+    _scoped_session = None
+
     def __init__(self):
         self._engine: AsyncEngine | None = None
         self._session_maker: async_sessionmaker | None = None
@@ -29,6 +34,7 @@ class DatabaseSessionManager:
         self._session_maker = async_sessionmaker(
             bind=self._engine, autocommit=False, expire_on_commit=False, autoflush=False
         )
+        self._scoped_session = async_scoped_session(self._session_maker, scopefunc=current_task)
 
     async def close(self):
         if self._engine is None:
@@ -85,20 +91,20 @@ class DBClient:
         await self.close()
 
     async def create(self):
-        async for session in get_session():
-            self.db_session = session
-            break
+        self.db_session = await anext(get_session())
 
     async def close(self):
-        if self.db_session:
-            await self.db_session.close()
+        await self.db_session.close()
 
     async def get_user_by_telegram_id(self, telegram_id) -> User:
         result = await self.db_session.execute(select(User).filter_by(telegram_id=telegram_id, active=True))
         return result.scalar()
 
     async def get_products_by_user_id(self, user_id) -> Iterable[Product]:
-        result = (await self.db_session.execute(select(Product).filter_by(user_id=user_id, deleted=False))).unique()
+        return await self.get_model_objects(Product, user_id=user_id, deleted=False)
+
+    async def get_model_objects(self, model: Type[T], **kwargs) -> Iterable[T]:
+        result = (await self.db_session.execute(select(model).filter_by(**kwargs))).unique()
         return result.scalars().all()
 
     async def create_object(self, model: Type[Base], **kwargs) -> Base:
@@ -120,7 +126,7 @@ class DBClient:
 
         changed = False
         for key, value in kwargs.items():
-            if hasattr(obj, key) and getattr(obj, key) != value:
+            if hasattr(obj, key):
                 setattr(obj, key, value)
                 changed = True
 

@@ -25,21 +25,15 @@ class BroadcastState(StatesGroup):
     product_url = State()
 
 
-async def on_startup(dispatcher):
-    sessionmanager.init(app_config.database_uri)
-
-
-async def on_shutdown(dispatcher):
-    await sessionmanager.close()
-
-
 class UzumBot:
-    def __init__(self):
+    def __init__(self, scheduler=None):
         self.bot = Bot(token=app_config.telegram.token.get_secret_value())
         self.dp = Dispatcher(storage=MemoryStorage())
         self.router = Router()
         self.register_handlers()
         self.dp.include_router(self.router)
+        if scheduler:
+            self.scheduler = scheduler()
 
     def register_handlers(self):
         self.router.message.register(self.handle_start, CommandStart())
@@ -50,9 +44,17 @@ class UzumBot:
         self.router.message.register(self.delete_product, F.text == KeyBoardButtonType.DELETE_PRODUCT.value)
         self.router.callback_query.register(self.delete_product_callback)
 
+    async def on_startup(self, dispatcher):
+        sessionmanager.init(app_config.database_uri)
+        await self.scheduler.start()
+
+    async def on_shutdown(self, dispatcher):
+        await sessionmanager.close()
+        await self.scheduler.stop()
+
     async def run(self):
-        self.dp.startup.register(on_startup)
-        self.dp.shutdown.register(on_shutdown)
+        self.dp.startup.register(self.on_startup)
+        self.dp.shutdown.register(self.on_shutdown)
         await self.dp.start_polling(self.bot)
 
     async def handle_start(self, message: Message):
