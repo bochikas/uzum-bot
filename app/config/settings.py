@@ -34,7 +34,7 @@ class Config(BaseSettings):
 
     @property
     def database_uri(self) -> str:
-        return f"postgresql+asyncpg://{self.db.user}:{self.db.password.get_secret_value()}@{self.db.host}:{self.db.port}/{self.db.name}"
+        return f"postgresql+asyncpg://{self.db.user}:{self.db.password.get_secret_value()}@{self.db.host}:{self.db.port}/{self.db.name}"  # noqa
 
 
 @lru_cache

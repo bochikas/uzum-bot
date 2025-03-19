@@ -2,7 +2,6 @@ from os import path
 
 from config.base import BASE_DIR
 
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

@@ -1,21 +1,20 @@
 import contextlib
 import logging
 from asyncio import current_task
-from typing import AsyncGenerator, AsyncIterator, Type, Iterable
+from typing import AsyncGenerator, AsyncIterator, Iterable, Type
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    AsyncEngine,
-    create_async_engine,
     AsyncConnection,
+    AsyncEngine,
+    AsyncSession,
     async_scoped_session,
+    async_sessionmaker,
+    create_async_engine,
 )
 
-from db.base import Base, DatabaseInitException
+from db.base import Base, DatabaseSessionManagerInitError
 from db.models import Product, User
-
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class DatabaseSessionManager:
 
     async def close(self):
         if self._engine is None:
-            raise DatabaseInitException("DatabaseSessionManager not initialized")
+            raise DatabaseSessionManagerInitError("DatabaseSessionManager not initialized")
         await self._engine.dispose()
         self._engine = None
         self._sessionmaker = None
@@ -41,7 +40,7 @@ class DatabaseSessionManager:
     @contextlib.asynccontextmanager
     async def connect(self) -> AsyncIterator[AsyncConnection]:
         if self._engine is None:
-            raise DatabaseInitException("DatabaseSessionManager not initialized")
+            raise DatabaseSessionManagerInitError("DatabaseSessionManager not initialized")
 
         async with self._engine.begin() as connection:
             try:
@@ -53,7 +52,7 @@ class DatabaseSessionManager:
     @contextlib.asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
         if self._sessionmaker is None:
-            raise DatabaseInitException("DatabaseSessionManager not initialized")
+            raise DatabaseSessionManagerInitError("DatabaseSessionManager not initialized")
 
         session = async_scoped_session(self._sessionmaker, scopefunc=current_task)
 
@@ -99,9 +98,7 @@ class DBClient:
         return result.scalar()
 
     async def get_products_by_user_id(self, user_id) -> Iterable[Product]:
-        result = (
-            await self.db_session.execute(select(Product).filter(Product.user_id == user_id, Product.deleted == False))
-        ).unique()
+        result = (await self.db_session.execute(select(Product).filter_by(user_id=user_id, deleted=False))).unique()
         return result.scalars().all()
 
     async def create_object(self, model: Type[Base], **kwargs) -> Base:

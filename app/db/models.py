@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, ForeignKey, text, UniqueConstraint
+from sqlalchemy import BigInteger, ForeignKey, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -35,7 +35,7 @@ class Product(Base):
     __table_args__ = (UniqueConstraint("number", "sku_id", name="unique_product"),)
 
     def __str__(self):
-        title = self.title = self.url
+        title = self.title or self.url
         return f"Product {title[:20]}"
 
     def __repr__(self):

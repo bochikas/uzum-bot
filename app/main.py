@@ -1,14 +1,14 @@
 import asyncio
-import logging.config
+from logging import config as logging_config
+from logging import getLogger
 
 from bot.uzum_bot import bot, dp
-from db.client import sessionmanager
 from config.logging import LOGGING
 from config.settings import app_config
+from db.client import sessionmanager
 
-
-logging.config.dictConfig(LOGGING)
-logger = logging.getLogger(__name__)
+logging_config.dictConfig(LOGGING)
+logger = getLogger(__name__)
 
 
 async def on_startup(dispatcher):

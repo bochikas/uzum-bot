@@ -1,0 +1,52 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+      - id: trailing-whitespace
+        types: [python]
+      - id: end-of-file-fixer
+        types: [python]
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: isort
+        name: isort
+        args: [ --settings=pyproject.toml ]
+        entry: uv run isort
+        language: system
+        types: [ python ]
+
+      - id: autoflake
+        name: autoflake
+        args: [ -r, --in-place, --remove-all-unused-imports, --remove-duplicate-keys, --config=pyproject.toml]
+        entry: uv run autoflake
+        language: system
+        types: [ python ]
+
+      - id: black
+        name: black
+        args: [ --config=pyproject.toml ]
+        entry: uv run black
+        language: system
+        types: [ python ]
+
+      - id: flake8
+        name: flake8
+        args: [ --format=html, --htmldir=./flake-report, --config=pyproject.toml ]
+        entry: uv run pflake8
+        language: system
+        types: [ python ]
+
+      - id: ruff
+        name: ruff
+        args: [ --config=pyproject.toml ]
+        entry: uv run ruff check
+        language: system
+
+      - id: ruff-format
+        name: ruff-format
+        args: [ --config=pyproject.toml ]
+        entry: uv run ruff format
+        language: system

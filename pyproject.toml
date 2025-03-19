@@ -17,7 +17,15 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "autoflake>=2.3.1",
     "black>=25.1.0",
+    "flake8>=7.0.0",
+    "flake8-html>=0.4.3",
+    "isort>=6.0.1",
+    "pre-commit>=4.2.0",
+    "pyproject-flake8>=7.0.0",
+    "ruff>=0.11.0",
+    "wemake-python-styleguide>=0.19.2",
 ]
 
 [tool.black]
@@ -33,3 +41,88 @@ exclude = """
     | tests
 )
 """
+
+[tool.isort]
+profile = "wemake"
+default_section = "THIRDPARTY"
+known_first_party = ["bot", "config", "db", "migration"]
+skip_glob = ["**/__pycache__", ".venv", "flake-report", "venv", "**/tests"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+line_length = 120
+
+[tool.autoflake]
+imports = ["sqlalchemy", "aiogram"]
+
+[tool.flake8]
+inline-quotes = "\""
+format = "wemake"
+show-source = true
+statistics = "false"
+doctests = true
+select = "C,E,F,W,B,B950"
+ignore = """
+C812,C815,C816,C408,C901,\
+E203,\
+W503,\
+WPS100,WPS110,WPS114,WPS115,\
+WPS201,WPS202,WPS203,WPS210,WPS211,WPS213,WPS214,WPS215,WPS216,WPS219,WPS220,WPS221,WPS222,WPS226,WPS230,WPS231,WPS234,WPS235,WPS237,\
+WPS305,WPS306,WPS318,WPS319,WPS320,WPS323,WPS332,WPS337,WPS347,WPS348,\
+WPS400,WPS402,WPS404,WPS407,WPS410,WPS412,WPS421,WPS425,WPS430,WPS431,WPS432,WPS442,WPS462,WPS463,\
+WPS501,WPS503,WPS510,WPS529,\
+WPS601,WPS602,WPS615
+"""
+max-try-body-length = 5
+max-line-length = 120
+strictness = "long"
+docstring-style = "numpy"
+exclude = ["**/__pycache__", ".venv", "**/tests/**", "flake-report", "venv", "**/migration/**", "uv.lock"]
+min-name-length = 1
+per-file-ignores = []
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+fix = true
+force-exclude = true
+
+extend-exclude = [
+    ".venv/",
+    "tests",
+    "docker",
+    "**/migration/*",
+    "__pycache",
+    ".pre-commit-config.yaml",
+    ".env.example",
+    "*.yml",
+    ".gitignore",
+    "uv.lock",
+    "alembic.ini",
+    "Makefile",
+    "LICENSE",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint]
+select = [
+    "F",        # pyflakes
+    "E", "W",   # pycodestyle
+    "C90",      # mccabe
+    "ERA",      # eradicate
+    "N",        # pep8-naming
+    "B",        # flake8-bugbear
+    "T20",      # flake8-print
+    "RET",      # flake8-return
+    "TCH",      # flake8-type-checking
+]
+
+fixable = [
+    "A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN",
+    "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN",
+    "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET",
+    "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"
+]
+
+# disable autofix for some possibly-unsafe rules
+unfixable = ["B", "SIM", "TRY", "RUF"]

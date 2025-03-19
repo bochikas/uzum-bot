@@ -1,21 +1,20 @@
 import logging
 import re
-from urllib.parse import urlparse
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlparse
 
-from aiogram import Bot, F, types, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, KeyboardButton, Message, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import exc
 
-from db.client import DBClient
-from db.models import Product, User
 from bot.schemas import KeyBoardButtonType
 from config.settings import app_config
+from db.client import DBClient
+from db.models import Product, User
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +65,7 @@ async def add_product(message: Message, state: FSMContext):
 
 
 @dp.message(BroadcastState.product_url)
-async def handle_product_url(message: Message, state: FSMContext):
+async def handle_product_url(message: Message, state: FSMContext):  # noqa WPS217
     """Обработка сообщения со ссылкой от пользователя."""
 
     if not message.text or not message.entities:
@@ -117,8 +116,8 @@ async def get_products(message: Message):
     builder = InlineKeyboardBuilder()
     for product in products:
         product_title = product.title or product.url
-        title = f"{product_title[:40]}. Цена: {product.price or "?"} сум"
-        builder.row(types.InlineKeyboardButton(text=title, url=product.url))
+        title = f"{product_title[:40]}. Цена: {product.price or '?'} сум"
+        builder.row(InlineKeyboardButton(text=title, url=product.url))
 
     await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
 
@@ -138,7 +137,7 @@ async def delete_product(message: Message):
     builder = InlineKeyboardBuilder()
     for product in products:
         product_title = product.title or product.url
-        title = f"{product_title[:40]}. Цена: {product.price or "?"} сум"
+        title = f"{product_title[:40]}. Цена: {product.price or '?'} сум"
         builder.button(text=title, callback_data=f"delete_{product.id}")
     builder.adjust(1)
 
