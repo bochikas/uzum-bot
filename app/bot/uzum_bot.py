@@ -63,7 +63,9 @@ class UzumBot:
         async with DBClient() as db_client:
             user = await db_client.get_user_by_telegram_id(message.from_user.id)
             if not user:
-                await db_client.create_object(User, telegram_id=message.from_user.id)
+                await db_client.create_object(
+                    User, telegram_id=message.from_user.id, username=message.from_user.username
+                )
         await message.answer("Привет! Выберите действие:", reply_markup=main_kb)
 
     async def handle_skip(self, message: Message, state: FSMContext):
@@ -107,7 +109,9 @@ class UzumBot:
         async with DBClient() as db_client:
             user = await db_client.get_user_by_telegram_id(message.from_user.id)
             try:
-                await db_client.create_object(Product, user_id=user.id, url=product_url, number=number, sku_id=sku_id)
+                await db_client.create_and_add_product_to_user(
+                    user_id=user.id, url=product_url, number=number, sku_id=sku_id
+                )
                 await message.answer(f"Добавлена ссылка {product_url}")
             except exc.IntegrityError:
                 await message.answer("Вы уже добавляли этот товар")
@@ -124,8 +128,8 @@ class UzumBot:
         builder = InlineKeyboardBuilder()
         for product in products:
             product_title = product.title or product.url
-            title = f"{product_title[:40]}. Цена: {product.price or '?'} сум"
-            builder.row(InlineKeyboardButton(text=title, url=product.url))
+            product_price = product.prices[0].price if product.prices else "?"
+            builder.row(InlineKeyboardButton(text=f"{product_title[:35]}. Цена: {product_price}", url=product.url))
 
         await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
 
@@ -139,16 +143,19 @@ class UzumBot:
         builder = InlineKeyboardBuilder()
         for product in products:
             product_title = product.title or product.url
-            title = f"{product_title[:40]}. Цена: {product.price or '?'} сум"
-            builder.button(text=title, callback_data=f"delete_{product.id}")
-        builder.adjust(1)
-
+            product_price = product.prices[0].price if product.prices else "?"
+            builder.row(
+                InlineKeyboardButton(
+                    text=f"{product_title[:35]}. Цена: {product_price}", callback_data=f"delete_{product.id}"
+                )
+            )
         await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
 
     async def delete_product_callback(self, callback: CallbackQuery):
         product_id = int(callback.data.replace("delete_", ""))
         async with DBClient() as db_client:
-            await db_client.delete_user_product(product_id)
+            user: User = await db_client.get_user_by_telegram_id(callback.from_user.id)
+            await db_client.delete_user_product(user.id, product_id)
 
         await callback.answer("Товар удален.", show_alert=True)
         await callback.message.delete()
@@ -156,5 +163,5 @@ class UzumBot:
     async def _get_user_products(self, telegram_id: int) -> list[Product]:
         async with DBClient() as db_client:
             user: User = await db_client.get_user_by_telegram_id(telegram_id)
-            products: list[Product] = await db_client.get_products_by_user_id(user.id)
-        return products
+            products = await db_client.get_user_products(user.id)
+        return products  # noqa RET504

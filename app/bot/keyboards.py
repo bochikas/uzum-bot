@@ -12,8 +12,8 @@ class KeyBoardButtonType(Enum):
 main_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text=KeyBoardButtonType.ADD_PRODUCT.value)],
-        [KeyboardButton(text=KeyBoardButtonType.DELETE_PRODUCT.value)],
         [KeyboardButton(text=KeyBoardButtonType.PRODUCT_LIST.value)],
+        [KeyboardButton(text=KeyBoardButtonType.DELETE_PRODUCT.value)],
     ],
     resize_keyboard=True,
 )

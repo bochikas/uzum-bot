@@ -9,12 +9,22 @@ class Base(AsyncAttrs, DeclarativeBase):
     __abstract__ = True
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     @declared_attr.directive
     def __tablename__(cls) -> str:  # noqa N805
         return f"{cls.__name__.lower()}s"
+
+
+class CreatedAtModelMixin:
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class UpdatedAtModelMixin:
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+
+
+class TimeStampModelMixin(CreatedAtModelMixin, UpdatedAtModelMixin):
+    """Миксин."""
 
 
 class DatabaseSessionManagerInitError(Exception):

@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 async def fetch_product_prices() -> None:
+    """Парсинг цены и заголовка товаров."""
+
     driver = Driver(uc=True, headless=True)
     async with DBClient() as db_client:
         products: list[Product] = await db_client.get_model_objects(Product)

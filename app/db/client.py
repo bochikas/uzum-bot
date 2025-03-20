@@ -3,7 +3,7 @@ import logging
 from asyncio import current_task
 from typing import AsyncGenerator, AsyncIterator, Iterable, Type, TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncEngine,
@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from db.base import Base, DatabaseSessionManagerInitError
-from db.models import Product, User
+from db.models import Product, User, user_product
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +23,6 @@ T = TypeVar("T", bound=Base)
 
 
 class DatabaseSessionManager:
-    _scoped_session = None
-
     def __init__(self):
         self._engine: AsyncEngine | None = None
         self._session_maker: async_sessionmaker | None = None
@@ -34,7 +32,6 @@ class DatabaseSessionManager:
         self._session_maker = async_sessionmaker(
             bind=self._engine, autocommit=False, expire_on_commit=False, autoflush=False
         )
-        self._scoped_session = async_scoped_session(self._session_maker, scopefunc=current_task)
 
     async def close(self):
         if self._engine is None:
@@ -66,9 +63,10 @@ class DatabaseSessionManager:
             yield session()
         except Exception:
             await session.rollback()
+            logger.exception("Unexpected error in database session")
             raise
         finally:
-            logger.debug("DB session closed")
+            logger.debug("Database session closed")
             await session.close()
 
 
@@ -100,8 +98,33 @@ class DBClient:
         result = await self.db_session.execute(select(User).filter_by(telegram_id=telegram_id, active=True))
         return result.scalar()
 
-    async def get_products_by_user_id(self, user_id) -> Iterable[Product]:
-        return await self.get_model_objects(Product, user_id=user_id, deleted=False)
+    async def get_user_products(self, user_id: int) -> Iterable[Product]:
+        """Список товара пользователя."""
+
+        query = select(Product).join(user_product, Product.id == user_product.c.product_id).filter_by(user_id=user_id)
+        result = (await self.db_session.execute(query)).unique()
+        return result.scalars().all()
+
+    async def delete_user_product(self, user_id: int, product_id: int) -> None:
+        query = delete(user_product).where(user_product.c.user_id == user_id, user_product.c.product_id == product_id)
+        await self.db_session.execute(query)
+        await self.db_session.commit()
+
+    async def create_and_add_product_to_user(self, user_id: int, url: str, number: str, sku_id: str | None) -> None:
+        result = await self.db_session.execute(select(Product).filter_by(number=number, sku_id=sku_id))
+        if not (product := result.scalar()):
+            product = Product(url=url, number=number, sku_id=sku_id)
+
+        user = await self.get_model_object_by_id(User, user_id)
+        user.products.append(product)
+        self.db_session.add(user)
+
+        await self.db_session.commit()
+        await self.db_session.refresh(user)
+
+    async def get_model_object_by_id(self, model: Type[T], obj_id: int) -> Type[T]:
+        result = await self.db_session.execute(select(model).filter_by(id=obj_id))
+        return result.scalar()
 
     async def get_model_objects(self, model: Type[T], **kwargs) -> Iterable[T]:
         result = (await self.db_session.execute(select(model).filter_by(**kwargs))).unique()
@@ -113,9 +136,6 @@ class DBClient:
         await self.db_session.commit()
         await self.db_session.refresh(obj)
         return obj
-
-    async def delete_user_product(self, product_id: int) -> None:
-        await self.update_object(Product, object_id=product_id, deleted=True)
 
     async def update_object(self, model: Type[Base], object_id, **kwargs):
         query = await self.db_session.execute(select(model).filter_by(id=object_id))
