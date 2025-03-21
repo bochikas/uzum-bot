@@ -13,8 +13,6 @@ logger = getLogger(__name__)
 async def main():
     bot = UzumBot(Scheduler)
     await bot.run()
-    scheduler = Scheduler()
-    await scheduler.start()
 
 
 if __name__ == "__main__":

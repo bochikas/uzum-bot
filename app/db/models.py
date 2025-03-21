@@ -56,6 +56,7 @@ class ProductPrice(Base, CreatedAtModelMixin):
 
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
     price: Mapped[float] = mapped_column(nullable=True)
+
     product: Mapped["Product"] = relationship("Product", back_populates="prices")
 
     def __repr__(self):

@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from db.base import Base, DatabaseSessionManagerInitError
-from db.models import Product, User, user_product
+from db.models import Product, ProductPrice, User, user_product
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +110,10 @@ class DBClient:
         await self.db_session.execute(query)
         await self.db_session.commit()
 
+    async def add_new_price(self, product_id: int, price: float) -> None:
+        self.db_session.add(ProductPrice(product_id=product_id, price=price))
+        await self.db_session.commit()
+
     async def create_and_add_product_to_user(self, user_id: int, url: str, number: str, sku_id: str | None) -> None:
         result = await self.db_session.execute(select(Product).filter_by(number=number, sku_id=sku_id))
         if not (product := result.scalar()):
@@ -120,7 +124,6 @@ class DBClient:
         self.db_session.add(user)
 
         await self.db_session.commit()
-        await self.db_session.refresh(user)
 
     async def get_model_object_by_id(self, model: Type[T], obj_id: int) -> Type[T]:
         result = await self.db_session.execute(select(model).filter_by(id=obj_id))
