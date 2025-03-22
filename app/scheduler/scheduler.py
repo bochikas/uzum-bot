@@ -31,7 +31,7 @@ class Scheduler:
         self.add_all_jobs()
 
     def add_all_jobs(self) -> None:
-        self.scheduler.add_job(self.fetch_product_prices, "interval", hour="24")
+        self.scheduler.add_job(self.fetch_product_prices, "interval", hours=24)
 
     async def start(self) -> None:
         """Start."""
@@ -90,6 +90,9 @@ class Scheduler:
 
     async def send_notifications(self, updated_products: dict[int, UpdatedProduct]) -> None:
         """Отправка оповещений об изменении цен."""
+
+        if not updated_products:
+            return
 
         async with DBClient() as db_client:
             users = await db_client.get_users_by_product_ids(updated_products.keys())

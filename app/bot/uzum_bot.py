@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import datetime
 from urllib.parse import parse_qs, urlparse
 
 from aiogram import Bot, Dispatcher, F, Router
@@ -14,7 +15,7 @@ from sqlalchemy import exc
 from bot.keyboards import KeyBoardButtonType, main_kb
 from config.settings import app_config
 from db.client import DBClient, sessionmanager
-from db.models import Product, User
+from db.models import Product, ProductPrice, User
 from db.schemas import UpdatedProduct
 from scheduler.scheduler import Scheduler
 
@@ -44,7 +45,8 @@ class UzumBot:
         self.router.message.register(self.handle_product_url, BroadcastState.product_url)
         self.router.message.register(self.get_products, F.text == KeyBoardButtonType.PRODUCT_LIST.value)
         self.router.message.register(self.delete_product, F.text == KeyBoardButtonType.DELETE_PRODUCT.value)
-        self.router.callback_query.register(self.delete_product_callback)
+        self.router.callback_query.register(self.delete_product_callback, F.data.startswith("delete_"))
+        self.router.callback_query.register(self.product_price_history_callback, F.data.startswith("history_"))
 
     async def on_startup(self, dispatcher):
         sessionmanager.init(app_config.database_uri)
@@ -131,9 +133,24 @@ class UzumBot:
         for product in products:
             product_title = product.title or product.url
             product_price = product.prices[0].price if product.prices else "?"
-            builder.row(InlineKeyboardButton(text=f"{product_title[:35]}. Цена: {product_price}", url=product.url))
-
+            builder.row(
+                InlineKeyboardButton(
+                    text=f"{product_title[:20]}. Цена: {product_price}. История", callback_data=f"history_{product.id}"
+                )
+            )
         await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
+
+    async def product_price_history_callback(self, callback: CallbackQuery):
+        """Получение истории цен на продукт."""
+
+        product_id = int(callback.data.replace("history_", ""))
+        async with DBClient() as db_client:
+            product = await db_client.get_model_object_by_id(Product, product_id)
+            product_prices: list[ProductPrice] = await db_client.get_model_objects(ProductPrice, product_id=product_id)
+        message = f"{product.title}. История цен: "
+        for price in product_prices:
+            message = f"{message}\n{datetime.strftime(price.created_at, '%d.%m.%Y')} - {price.price}"
+        await callback.message.answer(message)
 
     async def send_notification(self, telegram_id: int, updated_products: list[UpdatedProduct]) -> None:
         """Отправка оповещения пользователю об изменении цены на товар."""
@@ -146,7 +163,7 @@ class UzumBot:
         await self.bot.send_message(telegram_id, "Измененные цены на товары:", reply_markup=builder.as_markup())
 
     async def delete_product(self, message: Message):
-        """Удаление товара."""
+        """Список товара для удаления."""
 
         if not (products := await self._get_user_products(message.from_user.id)):
             await message.answer("У вас нет добавленного товара.")
@@ -164,7 +181,7 @@ class UzumBot:
         await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
 
     async def delete_product_callback(self, callback: CallbackQuery):
-        """Колбек удаления товара."""
+        """Удаление товара."""
 
         product_id = int(callback.data.replace("delete_", ""))
         async with DBClient() as db_client:
