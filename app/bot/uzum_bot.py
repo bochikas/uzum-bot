@@ -15,6 +15,8 @@ from bot.keyboards import KeyBoardButtonType, main_kb
 from config.settings import app_config
 from db.client import DBClient, sessionmanager
 from db.models import Product, User
+from db.schemas import UpdatedProduct
+from scheduler.scheduler import Scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +28,14 @@ class BroadcastState(StatesGroup):
 
 
 class UzumBot:
-    def __init__(self, scheduler=None):
+    def __init__(self):
         self.bot = Bot(token=app_config.telegram.token.get_secret_value())
         self.dp = Dispatcher(storage=MemoryStorage())
         self.router = Router()
         self.register_handlers()
         self.dp.include_router(self.router)
-        if scheduler:
-            self.scheduler = scheduler()
+
+        self.scheduler = Scheduler(self)
 
     def register_handlers(self):
         self.router.message.register(self.handle_start, CommandStart())
@@ -133,6 +135,16 @@ class UzumBot:
 
         await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
 
+    async def send_notification(self, telegram_id: int, updated_products: list[UpdatedProduct]) -> None:
+        """Отправка оповещения пользователю об изменении цены на товар."""
+
+        builder = InlineKeyboardBuilder()
+        for product in updated_products:
+            builder.row(
+                InlineKeyboardButton(text=f"{product.title[:35]}. Новая цена: {product.price}", url=product.url)
+            )
+        await self.bot.send_message(telegram_id, "Измененные цены на товары:", reply_markup=builder.as_markup())
+
     async def delete_product(self, message: Message):
         """Удаление товара."""
 
@@ -152,6 +164,8 @@ class UzumBot:
         await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
 
     async def delete_product_callback(self, callback: CallbackQuery):
+        """Колбек удаления товара."""
+
         product_id = int(callback.data.replace("delete_", ""))
         async with DBClient() as db_client:
             user: User = await db_client.get_user_by_telegram_id(callback.from_user.id)

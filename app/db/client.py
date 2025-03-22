@@ -125,9 +125,25 @@ class DBClient:
 
         await self.db_session.commit()
 
+    async def get_users_by_product_ids(self, product_ids: list[int]) -> Iterable[User]:
+        """Получить список пользователей, которые отслеживают цены на указанные продукты."""
+
+        query = (
+            select(User)
+            .join(user_product, User.id == user_product.c.user_id)
+            .where(user_product.c.product_id.in_(product_ids))
+            .distinct()
+        )
+
+        result = (await self.db_session.execute(query)).unique()
+        return result.scalars().all()
+
     async def get_model_object_by_id(self, model: Type[T], obj_id: int) -> Type[T]:
         result = await self.db_session.execute(select(model).filter_by(id=obj_id))
         return result.scalar()
+
+    async def get_all_user_products(self):
+        return await self.db_session.execute(select(user_product))
 
     async def get_model_objects(self, model: Type[T], **kwargs) -> Iterable[T]:
         result = (await self.db_session.execute(select(model).filter_by(**kwargs))).unique()
