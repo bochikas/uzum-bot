@@ -138,12 +138,18 @@ class DBClient:
         result = (await self.db_session.execute(query)).unique()
         return result.scalars().all()
 
+    async def get_all_user_products(self):
+        return await self.db_session.execute(select(user_product))
+
+    async def get_product_by_id(self, product_id: int) -> Type[Product]:
+        return await self.get_model_object_by_id(Product, product_id)
+
+    async def get_product_prices(self, product_id: int) -> Iterable[ProductPrice]:
+        return await self.get_model_objects(ProductPrice, product_id=product_id)
+
     async def get_model_object_by_id(self, model: Type[T], obj_id: int) -> Type[T]:
         result = await self.db_session.execute(select(model).filter_by(id=obj_id))
         return result.scalar()
-
-    async def get_all_user_products(self):
-        return await self.db_session.execute(select(user_product))
 
     async def get_model_objects(self, model: Type[T], **kwargs) -> Iterable[T]:
         result = (await self.db_session.execute(select(model).filter_by(**kwargs))).unique()
