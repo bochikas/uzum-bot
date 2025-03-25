@@ -101,6 +101,7 @@ extend-exclude = [
     "alembic.ini",
     "Makefile",
     "LICENSE",
+    "README.md",
 ]
 
 [tool.ruff.format]
