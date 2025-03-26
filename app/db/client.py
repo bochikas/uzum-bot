@@ -106,7 +106,7 @@ class DBClient:
         return result.scalars().all()
 
     async def delete_user_product(self, user_id: int, product_id: int) -> None:
-        query = delete(user_product).where(user_product.c.user_id == user_id, user_product.c.product_id == product_id)
+        query = delete(user_product).filter_by(user_id=user_id, product_id=product_id)
         await self.db_session.execute(query)
         await self.db_session.commit()
 
@@ -144,8 +144,12 @@ class DBClient:
     async def get_product_by_id(self, product_id: int) -> Type[Product]:
         return await self.get_model_object_by_id(Product, product_id)
 
-    async def get_product_prices(self, product_id: int) -> Iterable[ProductPrice]:
-        return await self.get_model_objects(ProductPrice, product_id=product_id)
+    async def get_product_with_prices(self, product_id: int) -> Product:
+        query = (
+            select(Product).join(ProductPrice, Product.id == ProductPrice.product_id).filter_by(product_id=product_id)
+        )
+        result = await self.db_session.execute(query)
+        return result.scalar()
 
     async def get_model_object_by_id(self, model: Type[T], obj_id: int) -> Type[T]:
         result = await self.db_session.execute(select(model).filter_by(id=obj_id))
@@ -159,7 +163,6 @@ class DBClient:
         obj = model(**kwargs)
         self.db_session.add(obj)
         await self.db_session.commit()
-        await self.db_session.refresh(obj)
         return obj
 
     async def update_object(self, model: Type[Base], object_id, **kwargs):

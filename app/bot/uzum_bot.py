@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
 
-    from db.models import Product, ProductPrice
+    from db.models import Product
     from db.schemas import UpdatedProduct
 
 logger = logging.getLogger(__name__)
@@ -148,10 +148,9 @@ class UzumBot:
 
         product_id = int(callback.data.replace("history_", ""))
         async with DBClient() as db_client:
-            product = await db_client.get_product_by_id(product_id)
-            product_prices: list["ProductPrice"] = await db_client.get_product_prices(product_id=product_id)
+            product = await db_client.get_product_with_prices(product_id)
         message = f"{product.title}. История цен: "
-        for price in product_prices:
+        for price in product.prices:
             message = f"{message}\n{datetime.strftime(price.created_at, '%d.%m.%Y')} - {price.price}"
         await callback.message.answer(message)
 

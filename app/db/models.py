@@ -15,7 +15,7 @@ class User(Base, TimeStampModelMixin):
     """Пользователь."""
 
     telegram_id: Mapped[int] = mapped_column(BigInteger)
-    username: Mapped[str] = mapped_column(nullable=True)
+    username: Mapped[str | None]
     active: Mapped[bool] = mapped_column(default=True, server_default=text("'true'"))
 
     products: Mapped[list["Product"]] = relationship(secondary=user_product, back_populates="users", lazy="joined")
@@ -31,10 +31,10 @@ class Product(Base, TimeStampModelMixin):
     """Товар."""
 
     url: Mapped[str]
-    title: Mapped[str] = mapped_column(nullable=True)
+    title: Mapped[str | None]
     deleted: Mapped[bool] = mapped_column(default=False, server_default=text("'false'"))
     number: Mapped[str]
-    sku_id: Mapped[str] = mapped_column(nullable=True)
+    sku_id: Mapped[str | None]
 
     users: Mapped[list["User"]] = relationship(secondary=user_product, back_populates="products")
     prices: Mapped[list["ProductPrice"]] = relationship(
@@ -55,7 +55,7 @@ class ProductPrice(Base, CreatedAtModelMixin):
     """Цена товара."""
 
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
-    price: Mapped[float] = mapped_column(nullable=True)
+    price: Mapped[float | None]
 
     product: Mapped["Product"] = relationship("Product", back_populates="prices")
 
