@@ -37,8 +37,6 @@ exclude = """
     .venv
     | flake-report
     | venv
-    | migrations
-    | versions
     | tests
 )
 """
