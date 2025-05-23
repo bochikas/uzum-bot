@@ -47,7 +47,7 @@ class UzumBot:
 
     def register_handlers(self):
         self.router.message.register(self.handle_start, CommandStart())
-        self.router.message.register(self.handle_skip, Command("skip"))
+        self.router.message.register(self.handle_cancel, Command("cancel"))
         self.router.message.register(self.add_product, F.text == KeyBoardButtonType.ADD_PRODUCT.value)
         self.router.message.register(self.handle_product_url, BroadcastState.product_url)
         self.router.message.register(self.get_products, F.text == KeyBoardButtonType.PRODUCT_LIST.value)
@@ -73,7 +73,7 @@ class UzumBot:
 
         await message.answer("Привет! Выберите действие:", reply_markup=main_kb)
 
-    async def handle_skip(self, message: "Message", state: "FSMContext"):
+    async def handle_cancel(self, message: "Message", state: "FSMContext"):
         await message.answer("Выберите действие", reply_markup=main_kb)
         await state.clear()
 
@@ -89,7 +89,7 @@ class UzumBot:
 
         if not message.text or not message.entities:
             return await message.answer(
-                "Сообщение не распознано. Пожалуйста, введите ссылку или нажмите /skip для отмены."
+                "Сообщение не распознано. Пожалуйста, введите ссылку или нажмите /cancel для отмены."
             )
         product_url = None
         for entity in message.entities:
@@ -98,7 +98,7 @@ class UzumBot:
 
         if not product_url:
             return await message.answer(
-                "Сообщение не распознано. Пожалуйста, введите ссылку или нажмите /skip для отмены."
+                "Сообщение не распознано. Пожалуйста, введите ссылку или нажмите /cancel для отмены."
             )
 
         parsed_url = urlparse(product_url)
