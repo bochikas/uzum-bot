@@ -32,13 +32,6 @@ repos:
         language: system
         types: [ python ]
 
-      - id: flake8
-        name: flake8
-        args: [ --format=html, --htmldir=./flake-report, --config=pyproject.toml ]
-        entry: uv run pflake8
-        language: system
-        types: [ python ]
-
       - id: ruff
         name: ruff
         args: [ --config=pyproject.toml ]
