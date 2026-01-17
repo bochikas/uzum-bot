@@ -24,5 +24,5 @@ class UserIdMiddleware(BaseMiddleware):
         async with DBClient() as db_client:
             user = await db_client.get_user_by_telegram_id(user_id)
             if not user:
-                user = await db_client.create_object(User, telegram_id=user.id, username=username)
+                user = await db_client.create_object(User, telegram_id=user_id, username=username)
         return user.id
