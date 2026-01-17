@@ -176,3 +176,5 @@ cython_debug/
 
 flake-report/
 downloaded_files/
+
+.DS_store
