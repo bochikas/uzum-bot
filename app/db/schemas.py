@@ -1,8 +1,13 @@
 from pydantic import BaseModel
 
 
-class UpdatedProduct(BaseModel):
+class UpdatedProductSchema(BaseModel):
     id: int
     title: str
     price: float
     url: str
+
+
+class ProductMinifiedSchema(BaseModel):
+    title: str
+    price: float

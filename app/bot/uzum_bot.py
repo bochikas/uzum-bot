@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import re
+from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
@@ -10,6 +12,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from extractor.parser import UzumParser
 from sqlalchemy.exc import IntegrityError
 
 from bot.keyboards import KeyBoardButtonType, main_kb
@@ -23,7 +26,7 @@ if TYPE_CHECKING:
     from aiogram.types import CallbackQuery, Message
 
     from db.models import Product
-    from db.schemas import UpdatedProduct
+    from db.schemas import UpdatedProductSchema
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,7 @@ class UzumBot:
     def __init__(self):
         self.bot = Bot(token=app_config.telegram.token.get_secret_value())
         self.dp = Dispatcher(storage=MemoryStorage())
+        self.parser = UzumParser()
         self.router = Router()
         self.register_handlers()
         self.dp.include_router(self.router)
@@ -116,14 +120,22 @@ class UzumBot:
 
         async with DBClient() as db_client:
             try:
-                await db_client.create_and_add_product_to_user(
+                product_id = await db_client.create_and_add_product_to_user(
                     user_id=user_id, url=product_url, number=number, sku_id=sku_id
                 )
+                logger.debug("product_id=%s, url=%s created", product_id, product_url)
+                # асинхронно добавим цену и название
+                asyncio.create_task(self.fill_new_product(product_id, product_url))
                 await message.answer(f"Добавлена ссылка {product_url}")
             except IntegrityError:
                 await message.answer("Вы уже добавляли этот товар")
             finally:
                 await state.clear()
+
+    async def fill_new_product(self, product_id: int, product_url: str) -> None:
+        parsed_product = await self.parser.fetch_product(product_url)
+        async with DBClient() as db_client:
+            db_client.update_product(product_id, parsed_product.model_dump())
 
     async def get_products(self, message: "Message", user_id: int):
         """Список добавленного товара."""
@@ -154,7 +166,20 @@ class UzumBot:
             message = f"{message}\n{datetime.strftime(price.created_at, '%d.%m.%Y')} - {price.price}"
         await callback.message.answer(message)
 
-    async def send_notification(self, telegram_id: int, updated_products: list["UpdatedProduct"]) -> None:
+    async def send_notification_for_updated_products(self, updated_products: dict[int, "UpdatedProductSchema"]):
+        """Оповестить об изменениях в продутках."""
+
+        async with DBClient() as db_client:
+            users = await db_client.get_users_by_product_ids(updated_products.keys())
+            user_updated_products = defaultdict(list)
+            for obj in await db_client.get_all_user_products():
+                if updated_products.get(obj.product_id):
+                    user_updated_products[obj.user_id].append(updated_products[obj.product_id])
+
+        for user in users:
+            await self.send_notification(user.telegram_id, user_updated_products[user.id])
+
+    async def send_notification(self, telegram_id: int, updated_products: list["UpdatedProductSchema"]) -> None:
         """Отправка оповещения пользователю об изменении цены на товар."""
 
         builder = InlineKeyboardBuilder()
