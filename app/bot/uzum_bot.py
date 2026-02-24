@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import re
-from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
@@ -12,21 +11,22 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from extractor.parser import UzumParser
 from sqlalchemy.exc import IntegrityError
 
 from bot.keyboards import KeyBoardButtonType, main_kb
 from bot.middlewares import UserIdMiddleware
 from config.settings import app_config
 from db.client import DBClient, sessionmanager
+from parser.uzum import UzumParser
 from scheduler.scheduler import Scheduler
+from services.product import ProductService
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
 
     from db.models import Product
-    from db.schemas import UpdatedProductSchema
+    from db.schemas import UpdatedProductSchema, UserProductSchema
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,8 @@ class UzumBot:
     def __init__(self):
         self.bot = Bot(token=app_config.telegram.token.get_secret_value())
         self.dp = Dispatcher(storage=MemoryStorage())
-        self.parser = UzumParser()
+        self.parser = UzumParser(headless=app_config.headless_mode)
+        self.service = ProductService(UzumParser)
         self.router = Router()
         self.register_handlers()
         self.dp.include_router(self.router)
@@ -166,18 +167,11 @@ class UzumBot:
             message = f"{message}\n{datetime.strftime(price.created_at, '%d.%m.%Y')} - {price.price}"
         await callback.message.answer(message)
 
-    async def send_notification_for_updated_products(self, updated_products: dict[int, "UpdatedProductSchema"]):
+    async def send_notification_for_updated_products(self, user_products: "UserProductSchema"):
         """Оповестить об изменениях в продутках."""
 
-        async with DBClient() as db_client:
-            users = await db_client.get_users_by_product_ids(updated_products.keys())
-            user_updated_products = defaultdict(list)
-            for obj in await db_client.get_all_user_products():
-                if updated_products.get(obj.product_id):
-                    user_updated_products[obj.user_id].append(updated_products[obj.product_id])
-
-        for user in users:
-            await self.send_notification(user.telegram_id, user_updated_products[user.id])
+        for user_telegram_id, products in user_products.items():
+            await self.send_notification(user_telegram_id, products)
 
     async def send_notification(self, telegram_id: int, updated_products: list["UpdatedProductSchema"]) -> None:
         """Отправка оповещения пользователю об изменении цены на товар."""
@@ -185,7 +179,7 @@ class UzumBot:
         builder = InlineKeyboardBuilder()
         for product in updated_products:
             builder.row(
-                InlineKeyboardButton(text=f"{product.title[:35]}. Новая цена: {product.price}", url=product.url)
+                InlineKeyboardButton(text=f"{product.title[:40]}. Новая цена: {product.new_price}", url=product.url)
             )
         await self.bot.send_message(telegram_id, "Измененные цены на товары:", reply_markup=builder.as_markup())
 

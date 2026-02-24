@@ -28,9 +28,10 @@ class DatabaseConfig(BaseConfig):
     name: str
 
 
-class Config(BaseSettings):
+class Config(BaseConfig):
     db: DatabaseConfig = Field(default_factory=DatabaseConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
+    headless_mode: bool = Field(validation_alias="HEADLESS_MODE")
 
     @property
     def database_uri(self) -> str:

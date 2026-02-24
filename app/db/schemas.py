@@ -1,10 +1,15 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
+
+
+class UserProductSchema(RootModel[dict[int, list["UpdatedProductSchema"]]]):
+    pass
 
 
 class UpdatedProductSchema(BaseModel):
     id: int
-    title: str
-    price: float
+    title: str | None
+    price: float | None
+    new_price: float
     url: str
 
 

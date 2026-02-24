@@ -131,7 +131,7 @@ class DBClient:
     async def update_product(self, product_id: int, **kwargs) -> None:
         await self.update_object(Product, product_id, **kwargs)
 
-    async def get_users_by_product_ids(self, product_ids: list[int]) -> Iterable[User]:
+    async def get_users_by_product_ids(self, product_ids: Iterable[int]) -> Iterable[User]:
         """Получить список пользователей, которые отслеживают цены на указанные продукты."""
 
         query = (

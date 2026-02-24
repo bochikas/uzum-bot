@@ -41,7 +41,7 @@ exclude = """
 [tool.isort]
 profile = "wemake"
 default_section = "THIRDPARTY"
-known_first_party = ["bot", "config", "db", "migration", "scheduler"]
+known_first_party = ["bot", "config", "db", "migration", "parser", "scheduler", "services"]
 skip_glob = ["**/__pycache__", ".venv", "venv", "**/tests"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 line_length = 120
