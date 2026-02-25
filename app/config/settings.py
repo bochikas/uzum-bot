@@ -28,10 +28,24 @@ class DatabaseConfig(BaseConfig):
     name: str
 
 
+class SchedulerConfig(BaseConfig):
+    model_config = SettingsConfigDict(env_prefix="scheduler_")
+
+    run_interval: int
+    run_on_startup: bool
+
+
+class ParserConfig(BaseConfig):
+    model_config = SettingsConfigDict(env_prefix="parser_")
+
+    headless_mode: bool
+
+
 class Config(BaseConfig):
     db: DatabaseConfig = Field(default_factory=DatabaseConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
-    headless_mode: bool = Field(validation_alias="HEADLESS_MODE")
+    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
+    parser: ParserConfig = Field(default_factory=ParserConfig)
 
     @property
     def database_uri(self) -> str:

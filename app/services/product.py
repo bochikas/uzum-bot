@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING, Iterable, Type
 
@@ -10,9 +12,40 @@ if TYPE_CHECKING:
     from parser.uzum import UzumParser
 
 
+logger = logging.getLogger(__name__)
+
+
 class ProductService:
+    """Сервисный слой для работы с товарами."""
+
     def __init__(self, parser: Type["UzumParser"]) -> None:
-        self.parser = parser(headless=app_config.headless_mode)
+        self.parser = parser(headless=app_config.parser.headless_mode)
+
+    async def add_new_product(self, user_id: int, url: str, number: str, sku_id: str | None) -> None:
+        async with DBClient() as db_client:
+            product_id = await db_client.create_and_add_product_to_user(
+                user_id=user_id, url=url, number=number, sku_id=sku_id
+            )
+            logger.debug("product_id=%s, url=%s created", product_id, url)
+            # асинхронно добавим цену и название
+            asyncio.create_task(self.fill_new_product(product_id, url))
+
+    async def fill_new_product(self, product_id: int, product_url: str) -> None:
+        parsed_product = await self.parser.fetch_product(product_url)
+        async with DBClient() as db_client:
+            db_client.update_product(product_id, parsed_product.model_dump())
+
+    async def get_user_products(self, user_id: int) -> list["Product"]:
+        async with DBClient() as db_client:
+            return await db_client.get_user_products(user_id)
+
+    async def delete_user_product(self, user_id: int, product_id: int) -> None:
+        async with DBClient() as db_client:
+            await db_client.delete_user_product(user_id, product_id)
+
+    async def get_product_with_prices(self, product_id: int) -> Product:
+        async with DBClient() as db_client:
+            return await db_client.get_product_with_prices(product_id)
 
     async def check_updates(self) -> list[UpdatedProductSchema]:
         updated: list[UpdatedProductSchema] = []

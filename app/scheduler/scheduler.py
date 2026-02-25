@@ -19,14 +19,17 @@ class Scheduler:
 
     scheduler: AsyncIOScheduler
 
-    def __init__(self, bot: "UzumBot") -> None:
+    def __init__(self, bot: "UzumBot", run_interval: int, run_on_startup: bool = False) -> None:
         self.scheduler = AsyncIOScheduler()
         self.service = ProductService(parser=UzumParser)
         self.bot = bot
+        self.run_interval = run_interval
+        self.run_on_startup = run_on_startup
         self.add_all_jobs()
 
     def add_all_jobs(self) -> None:
-        self.scheduler.add_job(self.update_all_products, "interval", hours=24, next_run_time=datetime.now())
+        next_run = datetime.now() if self.run_on_startup else None
+        self.scheduler.add_job(self.update_all_products, "interval", hours=self.run_interval, next_run_time=next_run)
 
     async def start(self) -> None:
         """Start."""

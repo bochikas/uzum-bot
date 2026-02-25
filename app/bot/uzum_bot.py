@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import re
 from datetime import datetime
@@ -16,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from bot.keyboards import KeyBoardButtonType, main_kb
 from bot.middlewares import UserIdMiddleware
 from config.settings import app_config
-from db.client import DBClient, sessionmanager
+from db.client import sessionmanager
 from parser.uzum import UzumParser
 from scheduler.scheduler import Scheduler
 from services.product import ProductService
@@ -25,7 +24,6 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
 
-    from db.models import Product
     from db.schemas import UpdatedProductSchema, UserProductSchema
 
 logger = logging.getLogger(__name__)
@@ -38,17 +36,19 @@ class BroadcastState(StatesGroup):
 
 
 class UzumBot:
+    """Телеграм бот для отслеживания цен на товары в Узум."""
+
     def __init__(self):
         self.bot = Bot(token=app_config.telegram.token.get_secret_value())
         self.dp = Dispatcher(storage=MemoryStorage())
-        self.parser = UzumParser(headless=app_config.headless_mode)
+        self.parser = UzumParser(headless=app_config.parser.headless_mode)
         self.service = ProductService(UzumParser)
         self.router = Router()
         self.register_handlers()
         self.dp.include_router(self.router)
         self.dp.update.outer_middleware(UserIdMiddleware())
 
-        self.scheduler = Scheduler(self)
+        self.scheduler = Scheduler(self, app_config.scheduler.run_interval, app_config.scheduler.run_on_startup)
 
     def register_handlers(self):
         self.router.message.register(self.handle_start, CommandStart())
@@ -119,29 +119,18 @@ class UzumBot:
         match = pattern.search(parsed_url.path)
         number = match.group(1)
 
-        async with DBClient() as db_client:
-            try:
-                product_id = await db_client.create_and_add_product_to_user(
-                    user_id=user_id, url=product_url, number=number, sku_id=sku_id
-                )
-                logger.debug("product_id=%s, url=%s created", product_id, product_url)
-                # асинхронно добавим цену и название
-                asyncio.create_task(self.fill_new_product(product_id, product_url))
-                await message.answer(f"Добавлена ссылка {product_url}")
-            except IntegrityError:
-                await message.answer("Вы уже добавляли этот товар")
-            finally:
-                await state.clear()
-
-    async def fill_new_product(self, product_id: int, product_url: str) -> None:
-        parsed_product = await self.parser.fetch_product(product_url)
-        async with DBClient() as db_client:
-            db_client.update_product(product_id, parsed_product.model_dump())
+        try:
+            await self.service.add_new_product(user_id=user_id, product_url=product_url, number=number, sku_id=sku_id)
+            await message.answer(f"Добавлена ссылка {product_url}")
+        except IntegrityError:
+            await message.answer("Вы уже добавляли этот товар")
+        finally:
+            await state.clear()
 
     async def get_products(self, message: "Message", user_id: int):
         """Список добавленного товара."""
 
-        if not (products := await self._get_user_products(user_id)):
+        if not (products := await self.service.get_user_products(user_id)):
             await message.answer("У вас нет добавленного товара.")
             return
 
@@ -160,8 +149,7 @@ class UzumBot:
         """Получение истории цен на продукт."""
 
         product_id = int(callback.data.replace("history_", ""))
-        async with DBClient() as db_client:
-            product = await db_client.get_product_with_prices(product_id)
+        product = await self.service.get_product_with_prices(product_id)
         message = f"{product.title}. История цен: "
         for price in product.prices:
             message = f"{message}\n{datetime.strftime(price.created_at, '%d.%m.%Y')} - {price.price}"
@@ -186,7 +174,7 @@ class UzumBot:
     async def delete_product(self, message: "Message", user_id: int):
         """Список товара для удаления."""
 
-        if not (products := await self._get_user_products(user_id)):
+        if not (products := await self.service.get_user_products(user_id)):
             await message.answer("У вас нет добавленного товара.")
             return
 
@@ -205,13 +193,6 @@ class UzumBot:
         """Удаление товара."""
 
         product_id = int(callback.data.replace("delete_", ""))
-        async with DBClient() as db_client:
-            await db_client.delete_user_product(user_id, product_id)
-
+        await self.service.delete_user_product(user_id, product_id)
         await callback.answer("Товар удален.", show_alert=True)
         await callback.message.delete()
-
-    async def _get_user_products(self, user_id: int) -> list["Product"]:
-        async with DBClient() as db_client:
-            products = await db_client.get_user_products(user_id)
-        return products  # noqa RET504

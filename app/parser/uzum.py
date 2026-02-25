@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class UzumParser:
+    """Парсер Узум."""
+
     def __init__(self, headless: bool = True):
         self.headless = headless
 
