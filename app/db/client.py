@@ -34,16 +34,14 @@ class DatabaseSessionManager:
         )
 
     async def close(self):
-        if self._engine is None:
-            raise DatabaseSessionManagerInitError("DatabaseSessionManager not initialized")
+        await self._check_engine()
         await self._engine.dispose()
         self._engine = None
         self._session_maker = None
 
     @contextlib.asynccontextmanager
     async def connect(self) -> AsyncIterator[AsyncConnection]:
-        if self._engine is None:
-            raise DatabaseSessionManagerInitError("DatabaseSessionManager not initialized")
+        await self._check_engine()
 
         async with self._engine.begin() as connection:
             try:
@@ -68,6 +66,10 @@ class DatabaseSessionManager:
         finally:
             logger.debug("Database session closed")
             await session.close()
+
+    async def _check_engine(self):
+        if self._engine is None:
+            raise DatabaseSessionManagerInitError("DatabaseSessionManager not initialized")
 
 
 sessionmanager = DatabaseSessionManager()
@@ -114,7 +116,7 @@ class DBClient:
         self.db_session.add(ProductPrice(product_id=product_id, price=price))
         await self.db_session.commit()
 
-    async def create_and_add_product_to_user(self, user_id: int, url: str, number: str, sku_id: str | None) -> None:
+    async def create_and_add_product_to_user(self, user_id: int, url: str, number: str, sku_id: str | None) -> int:
         result = await self.db_session.execute(select(Product).filter_by(number=number, sku_id=sku_id))
         if not (product := result.scalar()):
             product = Product(url=url, number=number, sku_id=sku_id)
@@ -124,8 +126,12 @@ class DBClient:
         self.db_session.add(user)
 
         await self.db_session.commit()
+        return product.id
 
-    async def get_users_by_product_ids(self, product_ids: list[int]) -> Iterable[User]:
+    async def update_product(self, product_id: int, **kwargs) -> None:
+        await self.update_object(Product, product_id, **kwargs)
+
+    async def get_users_by_product_ids(self, product_ids: Iterable[int]) -> Iterable[User]:
         """Получить список пользователей, которые отслеживают цены на указанные продукты."""
 
         query = (
