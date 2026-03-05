@@ -10,12 +10,12 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from publisher.publisher import RabbitPublisher
 from sqlalchemy.exc import IntegrityError
 
 from bot.keyboards import KeyBoardButtonType, main_kb
 from bot.middlewares import UserIdMiddleware
 from config.settings import app_config
-from db.client import sessionmanager
 from parser.uzum import UzumParser
 from scheduler.scheduler import Scheduler
 from services.product import ProductService
@@ -41,14 +41,17 @@ class UzumBot:
     def __init__(self):
         self.bot = Bot(token=app_config.telegram.token.get_secret_value())
         self.dp = Dispatcher(storage=MemoryStorage())
+        self.publisher = RabbitPublisher()
         self.parser = UzumParser(headless=app_config.parser.headless_mode)
-        self.service = ProductService(UzumParser)
+        self.service = ProductService(self.parser, self.publisher)
         self.router = Router()
         self.register_handlers()
         self.dp.include_router(self.router)
         self.dp.update.outer_middleware(UserIdMiddleware())
 
-        self.scheduler = Scheduler(self, app_config.scheduler.run_interval, app_config.scheduler.run_on_startup)
+        self.scheduler = Scheduler(
+            self, self.service, app_config.scheduler.run_interval, app_config.scheduler.run_on_startup
+        )
 
     def register_handlers(self):
         self.router.message.register(self.handle_start, CommandStart())
@@ -61,11 +64,11 @@ class UzumBot:
         self.router.callback_query.register(self.product_price_history_callback, F.data.startswith("history_"))
 
     async def on_startup(self, dispatcher):
-        sessionmanager.init(app_config.database_uri)
+        await self.publisher.start()
         await self.scheduler.start()
 
     async def on_shutdown(self, dispatcher):
-        await sessionmanager.close()
+        await self.publisher.close()
         await self.scheduler.stop()
 
     async def run(self):
@@ -120,7 +123,7 @@ class UzumBot:
         number = match.group(1)
 
         try:
-            await self.service.add_new_product(user_id=user_id, product_url=product_url, number=number, sku_id=sku_id)
+            await self.service.add_new_product(user_id=user_id, url=product_url, number=number, sku_id=sku_id)
             await message.answer(f"Добавлена ссылка {product_url}")
         except IntegrityError:
             await message.answer("Вы уже добавляли этот товар")

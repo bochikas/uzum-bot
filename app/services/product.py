@@ -1,14 +1,14 @@
-import asyncio
 import logging
 from collections import defaultdict
-from typing import TYPE_CHECKING, Iterable, Type
+from typing import TYPE_CHECKING, Iterable
 
-from config.settings import app_config
 from db.client import DBClient
 from db.models import Product
 from db.schemas import UpdatedProductSchema, UserProductSchema
 
 if TYPE_CHECKING:
+    from publisher.publisher import RabbitPublisher
+
     from parser.uzum import UzumParser
 
 
@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 class ProductService:
     """Сервисный слой для работы с товарами."""
 
-    def __init__(self, parser: Type["UzumParser"]) -> None:
-        self.parser = parser(headless=app_config.parser.headless_mode)
+    def __init__(self, parser: "UzumParser", publisher: "RabbitPublisher") -> None:
+        self.parser = parser
+        self.publisher = publisher
 
     async def add_new_product(self, user_id: int, url: str, number: str, sku_id: str | None) -> None:
         async with DBClient() as db_client:
@@ -28,12 +29,7 @@ class ProductService:
             )
             logger.debug("product_id=%s, url=%s created", product_id, url)
             # асинхронно добавим цену и название
-            asyncio.create_task(self.fill_new_product(product_id, url))
-
-    async def fill_new_product(self, product_id: int, product_url: str) -> None:
-        parsed_product = await self.parser.fetch_product(product_url)
-        async with DBClient() as db_client:
-            db_client.update_product(product_id, parsed_product.model_dump())
+        await self.publisher.publish(product_id, url)
 
     async def get_user_products(self, user_id: int) -> list["Product"]:
         async with DBClient() as db_client:

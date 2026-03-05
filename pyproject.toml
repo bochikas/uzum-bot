@@ -15,6 +15,7 @@ dependencies = [
     "apscheduler>=3.11.0",
     "seleniumbase>=4.35.7",
     "pytest-playwright>=0.7.2",
+    "aio-pika>=9.6.1",
 ]
 
 [dependency-groups]

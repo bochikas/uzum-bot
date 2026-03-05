@@ -32,6 +32,24 @@ class UzumParser:
         logger.debug("found raw price text: %s", price)
         return price
 
+    async def fetch_product_with_page(self, page: Page, url: str) -> ProductMinifiedSchema:
+        logger.debug("parsing product started")
+        await page.goto(url, wait_until="load")
+        await page.wait_for_timeout(random.uniform(2000, 5000))
+        locator = page.get_by_role("button", name="Добавить в корзину")
+        await expect(locator).to_be_visible()
+
+        try:  # noqa WPS229
+            product_title = await self.parse_product_title(page=page)
+            raw_price = await self.parse_product_price(page=page)
+            product_price = self._parse_price_to_float(raw_price)
+            return ProductMinifiedSchema(title=product_title, price=product_price)
+        except Exception:
+            logger.exception("error loading %s", url)
+            raise
+        finally:
+            await sleep(random.uniform(1, 4))
+
     async def fetch_product(self, url: str) -> ProductMinifiedSchema:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -40,24 +58,10 @@ class UzumParser:
             context = await browser.new_context(no_viewport=True)
             page = await context.new_page()
             try:
-                logger.debug("parsing single product started")
-                await page.goto(url, wait_until="load")
-                await page.wait_for_timeout(random.uniform(2000, 5000))
-                locator = page.get_by_role("button", name="Добавить в корзину")
-                await expect(locator).to_be_visible()
-
-                try:  # noqa WPS229
-                    product_title = await self.parse_product_title(page=page)
-                    raw_price = await self.parse_product_price(page=page)
-                    product_price = self._parse_price_to_float(raw_price)
-                except Exception:
-                    logger.exception("error loading %s", url)
-                finally:
-                    await sleep(random.uniform(1, 4))
+                return await self.fetch_product_with_page(page, url)
             finally:
                 await context.close()
                 await browser.close()
-        return ProductMinifiedSchema(title=product_title, price=product_price)
 
     async def fetch_products_update(self, products: Iterable[Product]) -> list[UpdatedProductSchema]:
         updated_products: list[UpdatedProductSchema] = []

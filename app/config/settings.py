@@ -41,11 +41,31 @@ class ParserConfig(BaseConfig):
     headless_mode: bool
 
 
+class RabbitMQConfig(BaseConfig):
+    model_config = SettingsConfigDict(env_prefix="rabbitmq_")
+
+    host: str
+    port: int
+    default_user: str
+    default_pass: str
+    management_port: int
+
+    exchange: str = "product.events"
+    exchange_type: str = "direct"
+    queue_product_add: str = "product.add"
+    routing_key_product_add: str = "product.add"
+
+    @property
+    def rabbitmq_uri(self) -> str:
+        return f"amqp://{self.default_user}:{self.default_pass}@{self.host}:{self.port}"
+
+
 class Config(BaseConfig):
     db: DatabaseConfig = Field(default_factory=DatabaseConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
     parser: ParserConfig = Field(default_factory=ParserConfig)
+    rabbitmq: RabbitMQConfig = Field(default_factory=RabbitMQConfig)
 
     @property
     def database_uri(self) -> str:

@@ -5,11 +5,10 @@ from typing import TYPE_CHECKING
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from db.schemas import UpdatedProductSchema
-from parser.uzum import UzumParser
-from services.product import ProductService
 
 if TYPE_CHECKING:
     from bot.uzum_bot import UzumBot
+    from services.product import ProductService
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +18,11 @@ class Scheduler:
 
     scheduler: AsyncIOScheduler
 
-    def __init__(self, bot: "UzumBot", run_interval: int, run_on_startup: bool = False) -> None:
+    def __init__(
+        self, bot: "UzumBot", service: "ProductService", run_interval: int, run_on_startup: bool = False
+    ) -> None:
         self.scheduler = AsyncIOScheduler()
-        self.service = ProductService(parser=UzumParser)
+        self.service = service
         self.bot = bot
         self.run_interval = run_interval
         self.run_on_startup = run_on_startup
