@@ -8,6 +8,7 @@ user_product = Table(
     Base.metadata,
     Column("user_id", ForeignKey("users.id"), primary_key=True),
     Column("product_id", ForeignKey("products.id"), primary_key=True),
+    UniqueConstraint("user_id", "product_id", name="unique_user_product"),
 )
 
 
