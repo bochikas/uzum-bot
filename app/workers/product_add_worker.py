@@ -7,10 +7,10 @@ import aio_pika
 import aio_pika.abc
 from playwright.async_api import Browser, Playwright, async_playwright
 
-from config.logging import LOGGING
-from config.settings import app_config
-from db.client import DBClient, sessionmanager
-from parser.uzum import UzumParser
+from app.config.logging import LOGGING
+from app.config.settings import app_config
+from app.db.client import DBClient, sessionmanager
+from app.parser.uzum import UzumParser
 
 logging_config.dictConfig(LOGGING)
 logger = getLogger(__name__)

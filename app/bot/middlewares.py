@@ -3,8 +3,8 @@ from typing import Any, Awaitable, Callable, Dict
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 
-from db.client import DBClient
-from db.models import User
+from app.db.client import DBClient
+from app.db.models import User
 
 
 class UserIdMiddleware(BaseMiddleware):

@@ -1,7 +1,7 @@
 # Uzum Price Tracker
 
 **Uzum Price Tracker** --- Telegram-бот для отслеживания цен на товары
-на платформе **Uzum**.\
+на платформе **Uzum**.
 Пользователь добавляет ссылку на товар, после чего бот автоматически
 отслеживает изменения цены и уведомляет при её изменении.
 
@@ -77,6 +77,7 @@
 -   Playwright
 -   RabbitMQ
 -   APScheduler
+-   Docker
 
 ------------------------------------------------------------------------
 
@@ -96,51 +97,44 @@
 
 # Запуск проекта
 
-## 1. Установить зависимости
-
-``` bash
-pip install uv
-uv sync
-```
-
-## 2. Настроить `.env`
+## 1. Настроить `.env.docker`
 
 Пример:
 
-    TG_TOKEN=...
-
-    POSTGRES_HOST=...
-    POSTGRES_PORT=5432
+    # DB
+    POSTGRES_DB=...
     POSTGRES_USER=...
     POSTGRES_PASSWORD=...
-    POSTGRES_NAME=...
-
-    RABBITMQ_HOST=localhost
+    POSTGRES_HOST=...
+    POSTGRES_PORT=5432
+    
+    # Telegram
+    TG_TOKEN=...
+    
+    # Parser
+    PARSER_HEADLESS_MODE=true
+    
+    # Scheduler
+    SCHEDULER_RUN_INTERVAL=8  # in hours
+    SCHEDULER_RUN_ON_STARTUP=false
+    
+    # RabbitMQ
+    RABBITMQ_HOST=...
     RABBITMQ_PORT=5672
+    RABBITMQ_DEFAULT_USER=guest
+    RABBITMQ_DEFAULT_PASS=guest
+    RABBITMQ_MANAGEMENT_PORT=15672
 
-## 3. Запустить RabbitMQ
-
-``` bash
-docker compose up -d rabbitmq
-```
-
-## 4. Запустить бота
+## 2. Запуск
 
 ``` bash
-uv run python app/main.py
-```
-
-## 5. Запустить воркер
-
-``` bash
-uv run python app/workers/product_worker.py
+docker compose up -d
 ```
 
 ------------------------------------------------------------------------
 
 # TODO
 
--   [ ] Docker containers for bot and workers
 -   [ ] Caching layer (Redis)
 -   [ ] Unit and integration tests
 -   [ ] CI/CD (GitHub Actions)

@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from db.base import Base, DatabaseSessionManagerInitError
-from db.models import Product, ProductPrice, User, user_product
+from app.db.base import Base, DatabaseSessionManagerInitError
+from app.db.models import Product, ProductPrice, User, user_product
 
 logger = logging.getLogger(__name__)
 

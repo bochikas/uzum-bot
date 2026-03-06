@@ -1,6 +1,6 @@
 from os import path
 
-from config.base import BASE_DIR
+from app.config.base import BASE_DIR
 
 LOGGING = {
     "version": 1,
