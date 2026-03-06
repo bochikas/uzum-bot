@@ -14,7 +14,7 @@ dependencies = [
     "greenlet>=3.1.1",
     "apscheduler>=3.11.0",
     "seleniumbase>=4.35.7",
-    "pytest-playwright>=0.7.2",
+    "playwright>=1.58.0",
     "aio-pika>=9.6.1",
 ]
 
@@ -42,7 +42,7 @@ exclude = """
 [tool.isort]
 profile = "wemake"
 default_section = "THIRDPARTY"
-known_first_party = ["bot", "config", "db", "migration", "parser", "scheduler", "services"]
+known_first_party = ["bot", "config", "db", "migration", "parser", "publisher", "scheduler", "services", "workers"]
 skip_glob = ["**/__pycache__", ".venv", "venv", "**/tests"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 line_length = 120
@@ -72,6 +72,8 @@ extend-exclude = [
     "Makefile",
     "LICENSE",
     "README.md",
+    "entrypoint.sh",
+    "Dockerfile",
 ]
 
 [tool.ruff.format]

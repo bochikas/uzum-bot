@@ -2,10 +2,10 @@ import asyncio
 from logging import config as logging_config
 from logging import getLogger
 
-from bot.uzum_bot import UzumBot
-from config.logging import LOGGING
-from config.settings import app_config
-from db.client import sessionmanager
+from app.bot.uzum_bot import UzumBot
+from app.config.logging import LOGGING
+from app.config.settings import app_config
+from app.db.client import sessionmanager
 
 logging_config.dictConfig(LOGGING)
 logger = getLogger(__name__)

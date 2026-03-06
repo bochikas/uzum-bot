@@ -2,14 +2,13 @@ import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING, Iterable
 
-from db.client import DBClient
-from db.models import Product
-from db.schemas import UpdatedProductSchema, UserProductSchema
+from app.db.client import DBClient
+from app.db.models import Product
+from app.db.schemas import UpdatedProductSchema, UserProductSchema
 
 if TYPE_CHECKING:
-    from publisher.publisher import RabbitPublisher
-
-    from parser.uzum import UzumParser
+    from app.parser.uzum import UzumParser
+    from app.publisher.publisher import RabbitPublisher
 
 
 logger = logging.getLogger(__name__)

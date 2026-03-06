@@ -10,21 +10,21 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from publisher.publisher import RabbitPublisher
 from sqlalchemy.exc import IntegrityError
 
-from bot.keyboards import KeyBoardButtonType, main_kb
-from bot.middlewares import UserIdMiddleware
-from config.settings import app_config
-from parser.uzum import UzumParser
-from scheduler.scheduler import Scheduler
-from services.product import ProductService
+from app.bot.keyboards import KeyBoardButtonType, main_kb
+from app.bot.middlewares import UserIdMiddleware
+from app.config.settings import app_config
+from app.parser.uzum import UzumParser
+from app.publisher.publisher import RabbitPublisher
+from app.scheduler.scheduler import Scheduler
+from app.services.product import ProductService
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
 
-    from db.schemas import UpdatedProductSchema, UserProductSchema
+    from app.db.schemas import UpdatedProductSchema, UserProductSchema
 
 logger = logging.getLogger(__name__)
 

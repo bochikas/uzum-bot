@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from db.schemas import UpdatedProductSchema
+from app.db.schemas import UpdatedProductSchema
 
 if TYPE_CHECKING:
-    from bot.uzum_bot import UzumBot
-    from services.product import ProductService
+    from app.bot.uzum_bot import UzumBot
+    from app.services.product import ProductService
 
 logger = logging.getLogger(__name__)
 

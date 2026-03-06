@@ -25,7 +25,7 @@ class DatabaseConfig(BaseConfig):
     port: int
     user: str
     password: SecretStr
-    name: str
+    db: str
 
 
 class SchedulerConfig(BaseConfig):
@@ -69,7 +69,7 @@ class Config(BaseConfig):
 
     @property
     def database_uri(self) -> str:
-        return f"postgresql+asyncpg://{self.db.user}:{self.db.password.get_secret_value()}@{self.db.host}:{self.db.port}/{self.db.name}"  # noqa
+        return f"postgresql+asyncpg://{self.db.user}:{self.db.password.get_secret_value()}@{self.db.host}:{self.db.port}/{self.db.db}"  # noqa
 
 
 @lru_cache

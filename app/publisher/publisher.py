@@ -3,7 +3,7 @@ import json
 import aio_pika
 import aio_pika.abc
 
-from config.settings import app_config
+from app.config.settings import app_config
 
 
 class RabbitPublisher:

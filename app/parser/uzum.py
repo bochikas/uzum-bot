@@ -6,8 +6,8 @@ from typing import Iterable
 
 from playwright.async_api import Page, async_playwright, expect
 
-from db.models import Product
-from db.schemas import ProductMinifiedSchema, UpdatedProductSchema
+from app.db.models import Product
+from app.db.schemas import ProductMinifiedSchema, UpdatedProductSchema
 
 logger = logging.getLogger(__name__)
 
