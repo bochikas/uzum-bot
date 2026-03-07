@@ -50,19 +50,6 @@ class UzumParser:
         finally:
             await sleep(random.uniform(1, 4))
 
-    async def fetch_product(self, url: str) -> ProductMinifiedSchema:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                args=["--start-maximized", "--disable-blink-features=AutomationControlled"], headless=self.headless
-            )
-            context = await browser.new_context(no_viewport=True)
-            page = await context.new_page()
-            try:
-                return await self.fetch_product_with_page(page, url)
-            finally:
-                await context.close()
-                await browser.close()
-
     async def fetch_products_update(self, products: Iterable[Product]) -> list[UpdatedProductSchema]:
         updated_products: list[UpdatedProductSchema] = []
 
@@ -81,11 +68,10 @@ class UzumParser:
                     try:  # noqa WPS229
                         current_price = await self.parse_product_price(page=page)
                         new_price = self._parse_price_to_float(current_price)
-                        product_price = product.prices[0].price if product.prices else None
-                        if not product_price or new_price != product_price:
+                        if not product.last_price or new_price != product.last_price:
                             updated_product = UpdatedProductSchema(
                                 id=product.id,
-                                price=product_price,
+                                price=product.last_price,
                                 new_price=new_price,
                                 title=product.title,
                                 url=product.url,

@@ -35,6 +35,9 @@ class BroadcastState(StatesGroup):
     product_url = State()
 
 
+UZUM_HOSTNAME = "uzum.uz"
+
+
 class UzumBot:
     """Телеграм бот для отслеживания цен на товары в Узум."""
 
@@ -110,7 +113,7 @@ class UzumBot:
             )
 
         parsed_url = urlparse(product_url)
-        if parsed_url.hostname != "uzum.uz":
+        if parsed_url.hostname != UZUM_HOSTNAME:
             return await message.answer("Неправильная ссылка")
 
         captured_value = parse_qs(parsed_url.query)
@@ -124,7 +127,7 @@ class UzumBot:
 
         try:
             await self.service.add_new_product(user_id=user_id, url=product_url, number=number, sku_id=sku_id)
-            await message.answer(f"Добавлена ссылка {product_url}")
+            await message.answer(f"Добавлена ссылка {product_url}. Парсим цену...")
         except IntegrityError:
             await message.answer("Вы уже добавляли этот товар")
         finally:
@@ -140,7 +143,7 @@ class UzumBot:
         builder = InlineKeyboardBuilder()
         for product in products:
             product_title = product.title or product.url
-            product_price = product.prices[0].price if product.prices else "?"
+            product_price = product.last_price or "?"
             builder.row(
                 InlineKeyboardButton(
                     text=f"{product_title[:20]}. Цена: {product_price}. История", callback_data=f"history_{product.id}"
@@ -184,7 +187,7 @@ class UzumBot:
         builder = InlineKeyboardBuilder()
         for product in products:
             product_title = product.title or product.url
-            product_price = product.prices[0].price if product.prices else "?"
+            product_price = product.last_price or "?"
             builder.row(
                 InlineKeyboardButton(
                     text=f"{product_title[:35]}. Цена: {product_price}", callback_data=f"delete_{product.id}"

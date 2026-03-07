@@ -57,8 +57,10 @@ class ProductService:
             for updated_product in updated:
                 await db_client.add_new_price(updated_product.id, updated_product.new_price)
                 product = await db_client.get_product_by_id(updated_product.id)
+                product_data: dict = {"last_price": updated_product.new_price}
                 if not product.title:
-                    await db_client.update_product(updated_product.id, title=updated_product.title)
+                    product_data["title"] = updated_product.title
+                await db_client.update_product(updated_product.id, **product_data)
 
         return updated
 
