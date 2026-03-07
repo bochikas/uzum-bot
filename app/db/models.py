@@ -36,6 +36,7 @@ class Product(Base, TimeStampModelMixin):
     deleted: Mapped[bool] = mapped_column(default=False, server_default=text("'false'"))
     number: Mapped[str]
     sku_id: Mapped[str | None]
+    last_price: Mapped[float | None]
 
     users: Mapped[list["User"]] = relationship(secondary=user_product, back_populates="products")
     prices: Mapped[list["ProductPrice"]] = relationship(

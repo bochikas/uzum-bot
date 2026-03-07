@@ -32,7 +32,7 @@ class ProductAddWorker:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.stop()
 
-    async def start(self):
+    async def start(self) -> None:
         sessionmanager.init(app_config.database_uri)
         self.connection = await aio_pika.connect_robust(app_config.rabbitmq.rabbitmq_uri)
         self.channel = await self.connection.channel()
@@ -56,7 +56,7 @@ class ProductAddWorker:
             async for message in queue_iter:
                 await self.handle_message(message)
 
-    async def handle_message(self, message: aio_pika.IncomingMessage):
+    async def handle_message(self, message: aio_pika.IncomingMessage) -> None:
         url = None
         try:
             payload = json.loads(message.body.decode())
@@ -77,7 +77,8 @@ class ProductAddWorker:
                 await context.close()
 
             async with DBClient() as db_client:
-                await db_client.update_product(product_id, **parsed_product.model_dump())
+                product_data = {"last_price": parsed_product.price, "title": parsed_product.title}
+                await db_client.update_product(product_id, **product_data)
                 await db_client.add_new_price(product_id, parsed_product.price)
 
             await message.ack()
@@ -88,7 +89,7 @@ class ProductAddWorker:
             await message.nack(requeue=True)
             logger.exception("error loading %s", url)
 
-    async def stop(self):
+    async def stop(self) -> None:
         if self.browser:
             await self.browser.close()
         if self.playwright:
@@ -98,7 +99,7 @@ class ProductAddWorker:
         await sessionmanager.close()
 
 
-async def main():
+async def main() -> None:
     async with ProductAddWorker() as worker:
         await worker.run()
 
