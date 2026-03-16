@@ -1,4 +1,6 @@
-from sqlalchemy import BigInteger, Column, ForeignKey, Table, UniqueConstraint, text
+from datetime import datetime
+
+from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Table, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, CreatedAtModelMixin, TimeStampModelMixin
@@ -37,6 +39,7 @@ class Product(Base, TimeStampModelMixin):
     number: Mapped[str]
     sku_id: Mapped[str | None]
     last_price: Mapped[float | None]
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     users: Mapped[list["User"]] = relationship(secondary=user_product, back_populates="products")
     prices: Mapped[list["ProductPrice"]] = relationship(

@@ -31,8 +31,7 @@ class DatabaseConfig(BaseConfig):
 class SchedulerConfig(BaseConfig):
     model_config = SettingsConfigDict(env_prefix="scheduler_")
 
-    run_interval: int
-    run_on_startup: bool
+    run_interval: int = 30  # minutes
 
 
 class ParserConfig(BaseConfig):
@@ -66,6 +65,8 @@ class Config(BaseConfig):
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
     parser: ParserConfig = Field(default_factory=ParserConfig)
     rabbitmq: RabbitMQConfig = Field(default_factory=RabbitMQConfig)
+
+    min_check_interval: int = 60 * 8  # минут
 
     @property
     def database_uri(self) -> str:

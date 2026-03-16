@@ -17,14 +17,14 @@ from app.bot.middlewares import UserIdMiddleware
 from app.config.settings import app_config
 from app.parser.uzum import UzumParser
 from app.publisher.publisher import RabbitPublisher
-from app.scheduler.scheduler import Scheduler
+from app.scheduler.scheduler import ProductScheduler
 from app.services.product import ProductService
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
 
-    from app.db.schemas import UpdatedProductSchema, UserProductSchema
+    from app.db.schemas import ProductFetchResultSchema, UserProductSchema
 
 logger = logging.getLogger(__name__)
 
@@ -44,17 +44,16 @@ class UzumBot:
     def __init__(self):
         self.bot = Bot(token=app_config.telegram.token.get_secret_value())
         self.dp = Dispatcher(storage=MemoryStorage())
+        self.router = Router()
+
         self.publisher = RabbitPublisher()
         self.parser = UzumParser(headless=app_config.parser.headless_mode)
-        self.service = ProductService(self.parser, self.publisher)
-        self.router = Router()
+        self.service = ProductService(self.parser, self.publisher, app_config.min_check_interval)
+        self.scheduler = ProductScheduler(self, self.service, app_config.scheduler.run_interval)
+
         self.register_handlers()
         self.dp.include_router(self.router)
         self.dp.update.outer_middleware(UserIdMiddleware())
-
-        self.scheduler = Scheduler(
-            self, self.service, app_config.scheduler.run_interval, app_config.scheduler.run_on_startup
-        )
 
     def register_handlers(self):
         self.router.message.register(self.handle_start, CommandStart())
@@ -167,7 +166,7 @@ class UzumBot:
         for user_telegram_id, products in user_products.items():
             await self.send_notification(user_telegram_id, products)
 
-    async def send_notification(self, telegram_id: int, updated_products: list["UpdatedProductSchema"]) -> None:
+    async def send_notification(self, telegram_id: int, updated_products: list["ProductFetchResultSchema"]) -> None:
         """Отправка оповещения пользователю об изменении цены на товар."""
 
         builder = InlineKeyboardBuilder()

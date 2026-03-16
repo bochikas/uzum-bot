@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import logging
 from asyncio import current_task
 from typing import AsyncGenerator, AsyncIterator, Iterable, Type, TypeVar
@@ -28,7 +29,9 @@ class DatabaseSessionManager:
         self._session_maker: async_sessionmaker | None = None
 
     def init(self, host: str):
-        self._engine = create_async_engine(host, future=True, poolclass=None)
+        self._engine = create_async_engine(
+            host, future=True, poolclass=None, connect_args={"server_settings": {"timezone": "UTC"}}
+        )
         self._session_maker = async_sessionmaker(
             bind=self._engine, autocommit=False, expire_on_commit=False, autoflush=False
         )
@@ -116,17 +119,22 @@ class DBClient:
         self.db_session.add(ProductPrice(product_id=product_id, price=price))
         await self.db_session.commit()
 
-    async def create_and_add_product_to_user(self, user_id: int, url: str, number: str, sku_id: str | None) -> int:
+    async def check_and_get_product(self, number: str, sku_id: str | None) -> Product | None:
         result = await self.db_session.execute(select(Product).filter_by(number=number, sku_id=sku_id))
-        if not (product := result.scalar()):
-            product = Product(url=url, number=number, sku_id=sku_id)
+        return result.scalar()
 
+    async def create_and_add_product_to_user(self, user_id: int, url: str, number: str, sku_id: str | None) -> Product:
+        product = Product(url=url, number=number, sku_id=sku_id)
         user = await self.get_model_object_by_id(User, user_id)
         user.products.append(product)
         self.db_session.add(user)
 
         await self.db_session.commit()
-        return product.id
+        return product
+
+    async def add_user_product(self, user_id: int, product_id: int) -> None:
+        self.db_session.add(user_product(user_id=user_id, product_id=product_id))
+        await self.db_session.commit()
 
     async def update_product(self, product_id: int, **kwargs) -> None:
         await self.update_object(Product, product_id, **kwargs)
@@ -165,13 +173,24 @@ class DBClient:
         result = (await self.db_session.execute(select(model).filter_by(**kwargs))).unique()
         return result.scalars().all()
 
+    async def get_products_to_check(self, time_to_check: datetime.datetime) -> Iterable[Product]:
+        result = (
+            await self.db_session.execute(
+                select(Product)
+                .where((Product.last_checked_at.is_(None)) | (Product.last_checked_at < time_to_check))
+                .limit(100)
+                .order_by(Product.last_checked_at.is_(None), Product.last_checked_at.desc())
+            )
+        ).unique()
+        return result.scalars().all()
+
     async def create_object(self, model: Type[Base], **kwargs) -> Base:
         obj = model(**kwargs)
         self.db_session.add(obj)
         await self.db_session.commit()
         return obj
 
-    async def update_object(self, model: Type[Base], object_id, **kwargs):
+    async def update_object(self, model: Type[Base], object_id, **kwargs) -> None:
         query = await self.db_session.execute(select(model).filter_by(id=object_id))
         obj = query.scalar()
 
