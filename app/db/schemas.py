@@ -1,15 +1,18 @@
+from datetime import datetime
+
 from pydantic import BaseModel, RootModel
 
 
-class UserProductSchema(RootModel[dict[int, list["UpdatedProductSchema"]]]):
+class UserProductSchema(RootModel[dict[int, list["ProductFetchResultSchema"]]]):
     pass
 
 
-class UpdatedProductSchema(BaseModel):
+class ProductFetchResultSchema(BaseModel):
     id: int
     title: str | None
     price: float | None
     new_price: float
+    checked_at: datetime | None
     url: str
 
 

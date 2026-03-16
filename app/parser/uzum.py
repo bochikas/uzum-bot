@@ -1,3 +1,4 @@
+import datetime
 import logging
 import random
 import re
@@ -7,7 +8,7 @@ from typing import Iterable
 from playwright.async_api import Page, async_playwright, expect
 
 from app.db.models import Product
-from app.db.schemas import ProductMinifiedSchema, UpdatedProductSchema
+from app.db.schemas import ProductFetchResultSchema, ProductMinifiedSchema
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +51,8 @@ class UzumParser:
         finally:
             await sleep(random.uniform(1, 4))
 
-    async def fetch_products_update(self, products: Iterable[Product]) -> list[UpdatedProductSchema]:
-        updated_products: list[UpdatedProductSchema] = []
+    async def fetch_products_updates(self, products: Iterable[Product]) -> list[ProductFetchResultSchema]:
+        result: list[ProductFetchResultSchema] = []
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -68,17 +69,17 @@ class UzumParser:
                     try:  # noqa WPS229
                         current_price = await self.parse_product_price(page=page)
                         new_price = self._parse_price_to_float(current_price)
-                        if not product.last_price or new_price != product.last_price:
-                            updated_product = UpdatedProductSchema(
-                                id=product.id,
-                                price=product.last_price,
-                                new_price=new_price,
-                                title=product.title,
-                                url=product.url,
-                            )
-                            if not product.title:
-                                updated_product.title = await self.parse_product_title(page=page)
-                            updated_products.append(updated_product)
+                        parsed_product = ProductFetchResultSchema(
+                            id=product.id,
+                            price=product.last_price,
+                            new_price=new_price,
+                            title=product.title,
+                            url=product.url,
+                            checked_at=datetime.datetime.now(datetime.UTC),
+                        )
+                        if not product.title:
+                            parsed_product.title = await self.parse_product_title(page=page)
+                        result.append(parsed_product)
 
                     except Exception:
                         logger.exception("error loading %s", product.url)
@@ -89,7 +90,7 @@ class UzumParser:
                 await browser.close()
 
         logger.debug("parsing products finished")
-        return updated_products
+        return result
 
     def _parse_price_to_float(self, price_text: str) -> float:
         digits = re.findall(r"\d+", price_text)
