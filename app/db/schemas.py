@@ -1,10 +1,12 @@
 from datetime import datetime
+from typing import TypedDict
 
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel
 
 
-class UserProductSchema(RootModel[dict[int, list["ProductFetchResultSchema"]]]):
-    pass
+class UserProductSchema(TypedDict):
+    user_id: int
+    products: list["ProductFetchResultSchema"]
 
 
 class ProductFetchResultSchema(BaseModel):

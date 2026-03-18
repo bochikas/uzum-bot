@@ -139,18 +139,18 @@ class DBClient:
     async def update_product(self, product_id: int, **kwargs) -> None:
         await self.update_object(Product, product_id, **kwargs)
 
-    async def get_users_by_product_ids(self, product_ids: Iterable[int]) -> Iterable[User]:
+    async def get_user_products_by_product_ids(self, product_ids: Iterable[int]) -> Iterable[tuple[int, int]]:
         """Получить список пользователей, которые отслеживают цены на указанные продукты."""
 
         query = (
-            select(User)
+            select(User.telegram_id, user_product.c.product_id)
             .join(user_product, User.id == user_product.c.user_id)
             .where(user_product.c.product_id.in_(product_ids))
             .distinct()
         )
 
         result = (await self.db_session.execute(query)).unique()
-        return result.scalars().all()
+        return result.all()
 
     async def get_all_user_products(self):
         return await self.db_session.execute(select(user_product))

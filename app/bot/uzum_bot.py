@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
 
-    from app.db.schemas import ProductFetchResultSchema, UserProductSchema
+    from app.db.schemas import ProductFetchResultSchema
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,9 @@ class UzumBot:
             message = f"{message}\n{datetime.strftime(price.created_at, '%d.%m.%Y')} - {price.price}"
         await callback.message.answer(message)
 
-    async def send_notification_for_updated_products(self, user_products: "UserProductSchema"):
+    async def send_notification_for_updated_products(
+        self, user_products: dict[int, list["ProductFetchResultSchema"]]
+    ) -> None:
         """Оповестить об изменениях в продутках."""
 
         for user_telegram_id, products in user_products.items():

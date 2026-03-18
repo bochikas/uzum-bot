@@ -7,7 +7,7 @@ from app.db.client import DBClient
 
 if TYPE_CHECKING:
     from app.db.models import Product
-    from app.db.schemas import ProductFetchResultSchema, UserProductSchema
+    from app.db.schemas import ProductFetchResultSchema
     from app.parser.uzum import UzumParser
     from app.publisher.publisher import RabbitPublisher
 
@@ -85,20 +85,17 @@ class ProductService:
                 await db_client.update_product(parsed_product.id, **product_data)
         return result
 
-    async def collect_user_products(self, products: list["ProductFetchResultSchema"]) -> "UserProductSchema":
+    async def collect_user_products(
+        self, products: list["ProductFetchResultSchema"]
+    ) -> dict[int, list["ProductFetchResultSchema"]]:
         products_by_id = {product.id: product for product in products}
         async with DBClient() as db_client:
-            users = await db_client.get_users_by_product_ids(products_by_id.keys())
-            all_user_products = await db_client.get_all_user_products()
-
-        user_updated_products_temp = defaultdict(list)
-        for obj in all_user_products:
-            if products_by_id.get(obj.product_id):
-                user_updated_products_temp[obj.user_id].append(products_by_id[obj.product_id])
+            user_products = await db_client.get_user_products_by_product_ids(products_by_id.keys())
 
         user_updated_products = defaultdict(list)
-        for user in users:
-            user_updated_products[user.telegram_id] = user_updated_products_temp[user.id]
+        for telegram_id, product_id in user_products:
+            user_updated_products[telegram_id].append(products_by_id[product_id])
+
         return user_updated_products
 
     def _filter_updated_products(self, products: list["ProductFetchResultSchema"]) -> list["ProductFetchResultSchema"]:
