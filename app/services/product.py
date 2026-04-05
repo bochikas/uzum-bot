@@ -53,34 +53,30 @@ class ProductService:
         async with DBClient() as db_client:
             return await db_client.get_product_with_prices(product_id)
 
-    async def get_products_to_check(self):
+    async def get_products_to_check(self) -> Iterable["Product"]:
         async with DBClient() as db_client:
             time_to_check = self._get_time_to_check(self.check_interval)
             products: Iterable["Product"] = await db_client.get_products_to_check(time_to_check)
         return products
 
-    async def get_updated_products(self) -> list["ProductFetchResultSchema"] | None:
+    async def get_updated_products(self) -> list["ProductFetchResultSchema"]:
         products_to_check = await self.get_products_to_check()
         if not products_to_check:
-            return None
+            return []
 
-        parsed_products = await self.check_updates(products_to_check)
+        parsed_products = await self.process_products_check(products_to_check)
         return self._filter_updated_products(parsed_products)
 
-    async def check_updates(self, products: Iterable["Product"]) -> list["ProductFetchResultSchema"]:
+    async def process_products_check(self, products: Iterable["Product"]) -> list["ProductFetchResultSchema"]:
         result: list["ProductFetchResultSchema"] = await self.parser.fetch_products_updates(products)
 
         async with DBClient() as db_client:
             for parsed_product in result:
-                product_data: dict = {
-                    "last_checked_at": parsed_product.checked_at,
-                }
+                product_data: dict = {"last_checked_at": parsed_product.checked_at}
                 if parsed_product.new_price != parsed_product.price:
                     await db_client.add_new_price(parsed_product.id, parsed_product.new_price)
-                    product = await db_client.get_product_by_id(parsed_product.id)
                     product_data["last_price"] = parsed_product.new_price
-                    if not product.title:
-                        product_data["title"] = parsed_product.title
+                    product_data["title"] = parsed_product.title
 
                 await db_client.update_product(parsed_product.id, **product_data)
         return result
@@ -99,11 +95,7 @@ class ProductService:
         return user_updated_products
 
     def _filter_updated_products(self, products: list["ProductFetchResultSchema"]) -> list["ProductFetchResultSchema"]:
-        updated_products = []
-        for product in products:
-            if product.new_price != product.price:
-                updated_products.append(product)
-        return updated_products
+        return [product for product in products if product.new_price != product.price]
 
     def _get_time_to_check(self, interval: int) -> datetime.datetime:
         now = datetime.datetime.now(datetime.UTC)
