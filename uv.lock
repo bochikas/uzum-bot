@@ -231,11 +231,11 @@ wheels = [
 
 [[package]]
 name = "attrs"
-version = "25.4.0"
+version = "26.1.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6b/5c/685e6633917e101e5dcb62b9dd76946cbb57c26e133bae9e0cd36033c0a9/attrs-25.4.0.tar.gz", hash = "sha256:16d5969b87f0859ef33a48b35d55ac1be6e42ae49d5e853b597db70c35c57e11", size = 934251, upload-time = "2025-10-06T13:54:44.725Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/8e/82a0fe20a541c03148528be8cac2408564a6c9a0cc7e9171802bc1d26985/attrs-26.1.0.tar.gz", hash = "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32", size = 952055, upload-time = "2026-03-19T14:22:25.026Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3a/2a/7cc015f5b9f5db42b7d48157e23356022889fc354a2813c15934b7cb5c0e/attrs-25.4.0-py3-none-any.whl", hash = "sha256:adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373", size = 67615, upload-time = "2025-10-06T13:54:43.17Z" },
+    { url = "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl", hash = "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309", size = 67548, upload-time = "2026-03-19T14:22:23.645Z" },
 ]
 
 [[package]]
@@ -994,11 +994,11 @@ wheels = [
 
 [[package]]
 name = "mycdp"
-version = "1.3.6"
+version = "1.3.7"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c0/eb/8053576b1d959a9a13f93d1cd6b5cc58a2c9b8049f7b9c1008a9ea069574/mycdp-1.3.6.tar.gz", hash = "sha256:2cdc408c1b81f9814eb897b42535b21bdefd31f6d185c609ccbbe25d8050fa36", size = 224859, upload-time = "2026-03-14T22:02:21.876Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/cf/8990229f1e51a1531105503254e3f76d6acd77e783ad9f9236c95a1a59d7/mycdp-1.3.7.tar.gz", hash = "sha256:0861fd85949eafd1ec794ebe58b54515c571544c983affbbc74249119ff94d21", size = 224859, upload-time = "2026-03-19T21:22:29.623Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/72/df/092f172b844f2ba5276c374c64971ab9ea55ae87cfc1d07b1fde2dadc677/mycdp-1.3.6-py3-none-any.whl", hash = "sha256:9e7f5885a85de44878f6fea452a0f2799867977e592622a3bb0691405b0dbffb", size = 252201, upload-time = "2026-03-14T22:02:20.646Z" },
+    { url = "https://files.pythonhosted.org/packages/97/0e/83918568b03bc2c7326eaf66454c1cb3d8734d34ccb1c4a21454ed9b8230/mycdp-1.3.7-py3-none-any.whl", hash = "sha256:49aa0f8cfbc608b157b3ad35999a74e32cddc674d7f0e0bbe402cdcef7ce69d6", size = 252208, upload-time = "2026-03-19T21:22:28.372Z" },
 ]
 
 [[package]]
@@ -1660,7 +1660,7 @@ wheels = [
 
 [[package]]
 name = "requests"
-version = "2.32.5"
+version = "2.33.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1668,9 +1668,9 @@ dependencies = [
     { name = "idna" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3f5c837e9c3dfcfe2018ea6ecef224c710c85ef728f4/requests-2.32.5.tar.gz", hash = "sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf", size = 134517, upload-time = "2025-08-18T20:46:02.573Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/64/8860370b167a9721e8956ae116825caff829224fbca0ca6e7bf8ddef8430/requests-2.33.0.tar.gz", hash = "sha256:c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652", size = 134232, upload-time = "2026-03-25T15:10:41.586Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl", hash = "sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6", size = 64738, upload-time = "2025-08-18T20:46:00.542Z" },
+    { url = "https://files.pythonhosted.org/packages/56/5d/c814546c2333ceea4ba42262d8c4d55763003e767fa169adc693bd524478/requests-2.33.0-py3-none-any.whl", hash = "sha256:3324635456fa185245e24865e810cecec7b4caf933d7eb133dcde67d48cee69b", size = 65017, upload-time = "2026-03-25T15:10:40.382Z" },
 ]
 
 [[package]]
@@ -1748,7 +1748,7 @@ wheels = [
 
 [[package]]
 name = "seleniumbase"
-version = "4.47.3"
+version = "4.47.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -1812,9 +1812,9 @@ dependencies = [
     { name = "wheel" },
     { name = "wsproto" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/52/8d/a28264d25f8b47a83acd2a172956bea4e8264ad75b464bae900383f69aa6/seleniumbase-4.47.3.tar.gz", hash = "sha256:deedce704ce57b31545b3d1e6b572caba2864666031d319fa76495031d99edd1", size = 652400, upload-time = "2026-03-13T00:18:07.154Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/f8/0f4eef77aeb01adc5f7ddfdfe3ebcede99ff357ac42641f39a50a74c63cf/seleniumbase-4.47.8.tar.gz", hash = "sha256:8e587c83b2c35dbd36cb0b0580f7b13a80ef28c84ca9c59fbcbc0a16a3c3fbe3", size = 653825, upload-time = "2026-03-26T05:18:22.798Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/99/c5/84dd91cf1658c6a149ceb6dc40c7b4fcf748b4d9bdc0e5962c1f49716709/seleniumbase-4.47.3-py3-none-any.whl", hash = "sha256:d9e12548479abf2b3e252220210154322c8ffd7b61c93092bc261a6faa4d0e0c", size = 659331, upload-time = "2026-03-13T00:18:04.631Z" },
+    { url = "https://files.pythonhosted.org/packages/07/09/549db38a00025d3a0027a71e6cc23251f936201b86495d80a4cebab72530/seleniumbase-4.47.8-py3-none-any.whl", hash = "sha256:e961a78c8f244b138d2e54bf57a98cb892057aa732ecebd505931c359811e724", size = 660574, upload-time = "2026-03-26T05:18:19.979Z" },
 ]
 
 [[package]]
