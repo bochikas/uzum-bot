@@ -120,8 +120,13 @@ class UzumBot:
         if sku_id := captured_value.get("skuId"):
             sku_id = sku_id[0]
 
-        pattern = re.compile(r"/product/.*?-([\d\-]+)(?:\?|$)")
+        pattern = re.compile(r"/product/(?:.*?-)?([\d-]+)(?:\?|$)")
         match = pattern.search(parsed_url.path)
+
+        if not match:
+            return await message.answer(
+                "Ссылка не распознана. Попробуйте ввести другую ссылку или нажмите /cancel для отмены."
+            )
         number = match.group(1)
 
         try:
