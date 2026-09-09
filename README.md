@@ -116,7 +116,6 @@
     
     # Scheduler
     SCHEDULER_RUN_INTERVAL=8  # in hours
-    SCHEDULER_RUN_ON_STARTUP=false
     
     # RabbitMQ
     RABBITMQ_HOST=...

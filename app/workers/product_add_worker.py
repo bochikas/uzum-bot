@@ -43,13 +43,9 @@ class ProductAddWorker:
         self.queue = await self.channel.declare_queue(app_config.rabbitmq.queue_product_add, durable=True)
         await self.queue.bind(self.exchange, routing_key=app_config.rabbitmq.routing_key_product_add)
 
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(
-            args=["--start-maximized", "--disable-blink-features=AutomationControlled"],
-            headless=app_config.parser.headless_mode,
-        )
-
         self.parser = UzumParser(headless=app_config.parser.headless_mode)
+        self.playwright = await async_playwright().start()
+        self.browser = await self.parser.create_browser(self.playwright)
 
     async def run(self):
         async with self.queue.iterator() as queue_iter:
@@ -69,8 +65,13 @@ class ProductAddWorker:
 
             logger.info("product_id=%s, url=%s", product_id, url)
 
-            context = await self.browser.new_context(no_viewport=True)
+            context = await self.browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                locale="ru-RU",
+                timezone_id="Asia/Tashkent",
+            )
             page = await context.new_page()
+            await self.parser.configure_page(page)
             try:
                 parsed_product = await self.parser.fetch_product_with_page(page, url)
             finally:
