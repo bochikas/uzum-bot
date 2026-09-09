@@ -67,7 +67,6 @@ class UzumParser:
     async def create_browser(self, p):
         return await p.chromium.launch(
             headless=self.headless,
-            channel="chrome",
             args=["--disable-blink-features=AutomationControlled"],
         )
 
