@@ -99,9 +99,16 @@ class DBClient:
     async def close(self):
         await self.db_session.close()
 
-    async def get_user_by_telegram_id(self, telegram_id) -> User:
-        result = await self.db_session.execute(select(User).filter_by(telegram_id=telegram_id, active=True))
+    async def update_user(self, user_id: int, **kwargs) -> None:
+        await self.update_object(User, user_id, **kwargs)
+
+    async def get_user_by_telegram_id(self, telegram_id: int, *, active: bool) -> User:
+        result = await self.db_session.execute(select(User).filter_by(telegram_id=telegram_id, active=active))
         return result.scalar()
+
+    async def update_user_by_telegram_id(self, telegram_id: int, **kwargs) -> None:
+        user = await self.get_user_by_telegram_id(telegram_id, active=True)
+        await self.update_user(user.id, **kwargs)
 
     async def get_user_products(self, user_id: int) -> Iterable[Product]:
         """Список товара пользователя."""
@@ -145,7 +152,7 @@ class DBClient:
         query = (
             select(User.telegram_id, user_product.c.product_id)
             .join(user_product, User.id == user_product.c.user_id)
-            .where(user_product.c.product_id.in_(product_ids))
+            .where(User.active.is_(True), user_product.c.product_id.in_(product_ids))
             .distinct()
         )
 

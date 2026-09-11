@@ -3,8 +3,7 @@ from typing import Any, Awaitable, Callable, Dict
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 
-from app.db.client import DBClient
-from app.db.models import User
+from services.user import UserService
 
 
 class UserIdMiddleware(BaseMiddleware):
@@ -21,8 +20,6 @@ class UserIdMiddleware(BaseMiddleware):
         return await handler(event, data)
 
     async def _get_user_id(self, user_id: int, username: str | None = None) -> int:
-        async with DBClient() as db_client:
-            user = await db_client.get_user_by_telegram_id(user_id)
-            if not user:
-                user = await db_client.create_object(User, telegram_id=user_id, username=username)
+        user_service = UserService()
+        user = await user_service.get_or_activate(user_id, username)
         return user.id
