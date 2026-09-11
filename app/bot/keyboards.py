@@ -4,9 +4,9 @@ from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 
 class KeyBoardButtonType(Enum):
-    ADD_PRODUCT = "Добавить ссылку на товар"
-    DELETE_PRODUCT = "Удалить товар из списка"
-    PRODUCT_LIST = "Список добавленного товара"
+    ADD_PRODUCT = "Добавить товар"
+    DELETE_PRODUCT = "Удалить товар"
+    PRODUCT_LIST = "Добавленные"
 
 
 main_kb = ReplyKeyboardMarkup(

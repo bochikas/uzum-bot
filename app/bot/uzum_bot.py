@@ -36,6 +36,7 @@ class BroadcastState(StatesGroup):
 
 
 UZUM_HOSTNAME = "uzum.uz"
+BUTTONS_WIDTH = 8
 
 
 class UzumBot:
@@ -81,7 +82,13 @@ class UzumBot:
     async def handle_start(self, message: "Message"):
         """Обработка команды старт."""
 
-        await message.answer("Привет! Выберите действие:", reply_markup=main_kb)
+        await message.answer(
+            (
+                "Привет! Это бот для отслеживания цен на маркетплейсе Узум. Добавьте товар и при изменении цены "
+                "мы оповестим вас. Выберите действие:"
+            ),
+            reply_markup=main_kb,
+        )
 
     async def handle_cancel(self, message: "Message", state: "FSMContext"):
         await message.answer("Выберите действие", reply_markup=main_kb)
@@ -148,10 +155,13 @@ class UzumBot:
         for product in products:
             product_title = product.title or product.url
             product_price = product.last_price or "?"
+            product_last_date = product.last_checked_at or "?"
             builder.row(
                 InlineKeyboardButton(
-                    text=f"{product_title[:20]}. Цена: {product_price}. История", callback_data=f"history_{product.id}"
-                )
+                    text=f"{product_title[:20]}. Цена: {product_price} {product_last_date:%Y-%m-%d %H:%M}. История",
+                    callback_data=f"history_{product.id}",
+                ),
+                width=BUTTONS_WIDTH,
             )
         await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
 
@@ -186,8 +196,8 @@ class UzumBot:
     async def delete_product(self, message: "Message", user_id: int):
         """Список товара для удаления."""
 
-        if not (products := await self.service.get_user_products(user_id)):
-            await message.answer("У вас нет добавленного товара.")
+        if not (products := await self.product_service.get_user_products(user_id)):
+            await message.answer("Список добавленного товара пуст.")
             return
 
         builder = InlineKeyboardBuilder()
@@ -197,9 +207,10 @@ class UzumBot:
             builder.row(
                 InlineKeyboardButton(
                     text=f"{product_title[:35]}. Цена: {product_price}", callback_data=f"delete_{product.id}"
-                )
+                ),
+                width=BUTTONS_WIDTH,
             )
-        await message.answer("Ваш список товаров:", reply_markup=builder.as_markup())
+        await message.answer("Добавленные:", reply_markup=builder.as_markup())
 
     async def delete_product_callback(self, callback: "CallbackQuery", user_id: int):
         """Удаление товара."""
