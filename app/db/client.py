@@ -140,7 +140,10 @@ class DBClient:
         return product
 
     async def add_user_product(self, user_id: int, product_id: int) -> None:
-        self.db_session.add(user_product(user_id=user_id, product_id=product_id))
+        product = await self.get_product_by_id(product_id)
+        user = await self.get_model_object_by_id(User, user_id)
+        user.products.append(product)
+        self.db_session.add(user)
         await self.db_session.commit()
 
     async def update_product(self, product_id: int, **kwargs) -> None:
