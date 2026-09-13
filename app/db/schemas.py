@@ -13,9 +13,10 @@ class ProductFetchResultSchema(BaseModel):
     id: int
     title: str | None
     price: float | None
-    new_price: float
+    new_price: float | None = None
     checked_at: datetime | None
     url: str
+    unavailable: bool = False
 
 
 class ProductMinifiedSchema(BaseModel):

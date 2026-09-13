@@ -178,3 +178,5 @@ flake-report/
 downloaded_files/
 
 .DS_store
+
+logs/
