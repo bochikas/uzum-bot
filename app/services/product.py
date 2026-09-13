@@ -24,9 +24,12 @@ class ProductService:
         self.check_interval = check_interval
 
     async def add_new_product(self, user_id: int, url: str, number: str, sku_id: str | None) -> None:
+        """Добавление товара пользователю."""
+
         async with DBClient() as db_client:
             product = await db_client.check_and_get_product(number, sku_id)
 
+            # Новый товар ещё не имеет цены и названия, сразу отправляем в парсер
             if not product:
                 product = await db_client.create_and_add_product_to_user(
                     user_id=user_id, url=url, number=number, sku_id=sku_id
@@ -36,10 +39,18 @@ class ProductService:
                 await self.publisher.publish(product.id, url)
                 return
 
+            # Повторное добавление удалённого товара начинает проверку доступности с нуля
+            if product.deleted:
+                await db_client.update_product(product.id, deleted=False, unavailable_attempts=0, next_check_at=None)
+                if not await db_client.has_user_product(user_id, product.id):
+                    await db_client.add_user_product(user_id, product.id)
+                await self.publisher.publish(product.id, url)
+                return
+
+            # Общий активный товар только связываем с пользователем. Свежую цену повторно не запрашиваем
             await db_client.add_user_product(user_id, product.id)
             if not product.last_checked_at or product.last_checked_at < self._get_time_to_check(self.check_interval):
                 await self.publisher.publish(product.id, url)
-                return
 
     async def get_user_products(self, user_id: int) -> list["Product"]:
         async with DBClient() as db_client:
@@ -68,17 +79,42 @@ class ProductService:
         return self._filter_updated_products(parsed_products)
 
     async def process_products_check(self, products: Iterable["Product"]) -> list["ProductFetchResultSchema"]:
+        """Сохранение результата парсинга и планировка повторных проверок."""
+
         result: list["ProductFetchResultSchema"] = await self.parser.fetch_products_updates(products)
 
+        unavailable_products = {}
         async with DBClient() as db_client:
             for parsed_product in result:
                 product_data: dict = {"last_checked_at": parsed_product.checked_at}
-                if parsed_product.new_price != parsed_product.price:
+                if parsed_product.unavailable:
+                    # Недоступные товары обрабатываем ниже, когда загрузим текущий счётчик попыток из БД
+                    unavailable_products[parsed_product.id] = parsed_product
+                else:
+                    # Успешная проверка завершает серию недоступности
+                    product_data["deleted"] = False
+                    product_data["unavailable_attempts"] = 0
+                    product_data["next_check_at"] = None
+
+                if parsed_product.new_price is not None and parsed_product.new_price != parsed_product.price:
                     await db_client.add_new_price(parsed_product.id, parsed_product.new_price)
                     product_data["last_price"] = parsed_product.new_price
+
+                if parsed_product.title is not None:
                     product_data["title"] = parsed_product.title
 
                 await db_client.update_product(parsed_product.id, **product_data)
+
+            # Последовательные неудачи откладывают проверку на 1, 3 и 7 дней. Четвёртая удаляет товар
+            for product in await db_client.get_products_by_ids(unavailable_products.keys()):
+                product_data: dict = {}
+                product_data["unavailable_attempts"] = product.unavailable_attempts + 1
+                product_data["next_check_at"] = self._get_next_check_at(product_data["unavailable_attempts"])
+                if product_data["next_check_at"] is None:
+                    product_data["deleted"] = True
+
+                await db_client.update_product(product.id, **product_data)
+
         return result
 
     async def collect_user_products(
@@ -94,8 +130,22 @@ class ProductService:
 
         return user_updated_products
 
+    def _get_next_check_at(self, attempt: int) -> datetime.datetime | None:
+        now = datetime.datetime.now(datetime.UTC)
+        if attempt == 1:
+            return now + datetime.timedelta(days=1)
+        if attempt == 2:
+            return now + datetime.timedelta(days=3)
+        if attempt == 3:
+            return now + datetime.timedelta(days=7)
+        return None
+
     def _filter_updated_products(self, products: list["ProductFetchResultSchema"]) -> list["ProductFetchResultSchema"]:
-        return [product for product in products if product.new_price != product.price]
+        return [
+            product
+            for product in products
+            if not product.unavailable and product.new_price is not None and product.new_price != product.price
+        ]
 
     def _get_time_to_check(self, interval: int) -> datetime.datetime:
         now = datetime.datetime.now(datetime.UTC)

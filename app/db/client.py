@@ -4,7 +4,7 @@ import logging
 from asyncio import current_task
 from typing import AsyncGenerator, AsyncIterator, Iterable, Type, TypeVar
 
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncEngine,
@@ -113,7 +113,11 @@ class DBClient:
     async def get_user_products(self, user_id: int) -> Iterable[Product]:
         """Список товара пользователя."""
 
-        query = select(Product).join(user_product, Product.id == user_product.c.product_id).filter_by(user_id=user_id)
+        query = (
+            select(Product)
+            .join(user_product, Product.id == user_product.c.product_id)
+            .where(user_product.c.user_id == user_id, Product.deleted.is_(False))
+        )
         result = (await self.db_session.execute(query)).unique()
         return result.scalars().all()
 
@@ -145,6 +149,14 @@ class DBClient:
         user.products.append(product)
         self.db_session.add(user)
         await self.db_session.commit()
+
+    async def has_user_product(self, user_id: int, product_id: int) -> bool:
+        query = select(user_product.c.product_id).where(
+            user_product.c.user_id == user_id,
+            user_product.c.product_id == product_id,
+        )
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none() is not None
 
     async def update_product(self, product_id: int, **kwargs) -> None:
         await self.update_object(Product, product_id, **kwargs)
@@ -179,17 +191,35 @@ class DBClient:
         result = await self.db_session.execute(select(model).filter_by(id=obj_id))
         return result.scalar()
 
+    async def get_products_by_ids(self, product_ids: Iterable[int]) -> Iterable[Product]:
+        result = await self.db_session.execute(select(Product).where(Product.id.in_(product_ids)))
+        return result.unique().scalars().all()
+
     async def get_model_objects(self, model: Type[T], **kwargs) -> Iterable[T]:
         result = (await self.db_session.execute(select(model).filter_by(**kwargs))).unique()
         return result.scalars().all()
 
     async def get_products_to_check(self, time_to_check: datetime.datetime) -> Iterable[Product]:
+        """Активные товары, для которых наступило время проверки."""
+
+        now = datetime.datetime.now(datetime.UTC)
         result = (
             await self.db_session.execute(
                 select(Product)
-                .where((Product.last_checked_at.is_(None)) | (Product.last_checked_at < time_to_check))
+                .where(
+                    Product.deleted.is_(False),
+                    or_(
+                        # Обычная проверка цены выполняется через общий интервал.
+                        and_(
+                            Product.next_check_at.is_(None),
+                            or_(Product.last_checked_at.is_(None), Product.last_checked_at < time_to_check),
+                        ),
+                        # Для временно недоступного товара действует индивидуальная дата повтора.
+                        Product.next_check_at <= now,
+                    ),
+                )
                 .limit(100)
-                .order_by(Product.last_checked_at.is_(None), Product.last_checked_at.desc())
+                .order_by(Product.id)
             )
         ).unique()
         return result.scalars().all()

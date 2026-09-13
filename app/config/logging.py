@@ -1,6 +1,7 @@
-from os import path
-
 from app.config.base import BASE_DIR
+
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 LOGGING = {
     "version": 1,
@@ -20,21 +21,15 @@ LOGGING = {
         "file": {
             "level": "DEBUG",
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": path.join(BASE_DIR, "info.log"),
+            "filename": str(LOG_DIR / "info.log"),
             "formatter": "verbose",
-            "maxBytes": 1048576,
+            "encoding": "utf-8",
+            "maxBytes": 1024 * 1024,
             "backupCount": 3,
         },
     },
-    "loggers": {
-        "": {
-            "handlers": ["console", "file"],
-            "level": "DEBUG",
-        },
-        "django": {
-            "handlers": ["console", "file"],
-            "level": "WARNING",
-            "propagate": False,
-        },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": "DEBUG",
     },
 }

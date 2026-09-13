@@ -46,6 +46,9 @@ class Product(Base, TimeStampModelMixin):
         "ProductPrice", back_populates="product", lazy="joined", order_by="-ProductPrice.id"
     )
 
+    next_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    unavailable_attempts: Mapped[int] = mapped_column(default=0, server_default=text("'0'"))
+
     __table_args__ = (UniqueConstraint("number", "sku_id", name="unique_product"),)
 
     def __str__(self):

@@ -119,6 +119,8 @@ class UzumParser:
         logger.debug("configured headless user agent: %s", user_agent)
 
     async def fetch_products_updates(self, products: Iterable[Product]) -> list[ProductFetchResultSchema]:
+        """Проверка доступности и получение текущей цены переданных товаров."""
+
         result: list[ProductFetchResultSchema] = []
 
         async with async_playwright() as p:
@@ -146,25 +148,28 @@ class UzumParser:
                         )
 
                         await page.wait_for_timeout(3_000)
-                        if await self.is_product_unavailable(page=page):
-                            continue
 
-                        current_price = await self.parse_product_price(page=page)
-                        new_price = self._parse_price_to_float(current_price)
                         parsed_product = ProductFetchResultSchema(
                             id=product.id,
                             price=product.last_price,
-                            new_price=new_price,
                             title=product.title,
                             url=product.url,
                             checked_at=datetime.datetime.now(datetime.UTC),
                         )
 
-                        if not product.title:
-                            parsed_product.title = await self.parse_product_title(page=page)
+                        # Явное сообщение Uzum о недоступности — а не ошибка парсинга.
+                        if await self.is_product_unavailable(page=page):
+                            parsed_product.unavailable = True
+                        else:
+                            current_price = await self.parse_product_price(page=page)
+                            parsed_product.new_price = self._parse_price_to_float(current_price)
+
+                            if not product.title:
+                                parsed_product.title = await self.parse_product_title(page=page)
 
                         result.append(parsed_product)
 
+                    # CAPTCHA, таймауты, изменения вёрстки
                     except Exception:
                         logger.exception("error loading %s; final_url=%s", product.url, page.url)
 
