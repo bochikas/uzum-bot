@@ -102,12 +102,12 @@ class DBClient:
     async def update_user(self, user_id: int, **kwargs) -> None:
         await self.update_object(User, user_id, **kwargs)
 
-    async def get_user_by_telegram_id(self, telegram_id: int, *, active: bool) -> User:
-        result = await self.db_session.execute(select(User).filter_by(telegram_id=telegram_id, active=active))
+    async def get_user_by_telegram_id(self, telegram_id: int) -> User:
+        result = await self.db_session.execute(select(User).filter_by(telegram_id=telegram_id))
         return result.scalar()
 
     async def update_user_by_telegram_id(self, telegram_id: int, **kwargs) -> None:
-        user = await self.get_user_by_telegram_id(telegram_id, active=True)
+        user = await self.get_user_by_telegram_id(telegram_id)
         await self.update_user(user.id, **kwargs)
 
     async def get_user_products(self, user_id: int) -> Iterable[Product]:

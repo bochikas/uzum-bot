@@ -16,9 +16,12 @@ class UserService:
 
     async def get_or_activate(self, telegram_id: int, username: str | None) -> User:
         async with DBClient() as db:
-            user = await db.get_user_by_telegram_id(telegram_id, active=False)
+            user = await db.get_user_by_telegram_id(telegram_id)
 
-            if user:
+            if user and user.active:
+                return user
+
+            if user and not user.active:
                 await db.update_user(user.id, active=True, username=username)
                 return user
 
