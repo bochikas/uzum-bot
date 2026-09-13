@@ -3,7 +3,7 @@ from typing import Any, Awaitable, Callable, Dict
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 
-from services.user import UserService
+from app.services.user import UserService
 
 
 class UserIdMiddleware(BaseMiddleware):
