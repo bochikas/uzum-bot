@@ -17,7 +17,7 @@ user_product = Table(
 class User(Base, TimeStampModelMixin):
     """Пользователь."""
 
-    telegram_id: Mapped[int] = mapped_column(BigInteger)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     username: Mapped[str | None]
     active: Mapped[bool] = mapped_column(default=True, server_default=text("'true'"))
 

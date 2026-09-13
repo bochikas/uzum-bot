@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
-from aiogram import Bot, Dispatcher, F, Router
+from aiogram import Bot, Dispatcher, F, Router, exceptions
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -19,6 +19,7 @@ from app.parser.uzum import UzumParser
 from app.publisher.publisher import RabbitPublisher
 from app.scheduler.scheduler import ProductScheduler
 from app.services.product import ProductService
+from app.services.user import UserService
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -49,8 +50,9 @@ class UzumBot:
 
         self.publisher = RabbitPublisher()
         self.parser = UzumParser(headless=app_config.parser.headless_mode)
-        self.service = ProductService(self.parser, self.publisher, app_config.min_check_interval)
-        self.scheduler = ProductScheduler(self, self.service, app_config.scheduler.run_interval)
+        self.product_service = ProductService(self.parser, self.publisher, app_config.min_check_interval)
+        self.user_service = UserService()
+        self.scheduler = ProductScheduler(self, self.product_service, app_config.scheduler.run_interval)
 
         self.register_handlers()
         self.dp.include_router(self.router)
@@ -137,7 +139,7 @@ class UzumBot:
         number = match.group(1)
 
         try:
-            await self.service.add_new_product(user_id=user_id, url=product_url, number=number, sku_id=sku_id)
+            await self.product_service.add_new_product(user_id=user_id, url=product_url, number=number, sku_id=sku_id)
             await message.answer(f"Добавлена ссылка {product_url}. Парсим цену...")
         except IntegrityError:
             await message.answer("Вы уже добавляли этот товар")
@@ -147,7 +149,7 @@ class UzumBot:
     async def get_products(self, message: "Message", user_id: int):
         """Список добавленного товара."""
 
-        if not (products := await self.service.get_user_products(user_id)):
+        if not (products := await self.product_service.get_user_products(user_id)):
             await message.answer("У вас нет добавленного товара.")
             return
 
@@ -169,7 +171,7 @@ class UzumBot:
         """Получение истории цен на продукт."""
 
         product_id = int(callback.data.replace("history_", ""))
-        product = await self.service.get_product_with_prices(product_id)
+        product = await self.product_service.get_product_with_prices(product_id)
         message = f"{product.title}. История цен: "
         for price in product.prices:
             message = f"{message}\n{datetime.strftime(price.created_at, '%d.%m.%Y')} - {price.price}"
@@ -191,7 +193,19 @@ class UzumBot:
             builder.row(
                 InlineKeyboardButton(text=f"{product.title[:40]}. Новая цена: {product.new_price}", url=product.url)
             )
-        await self.bot.send_message(telegram_id, "Измененные цены на товары:", reply_markup=builder.as_markup())
+        try:
+            await self.bot.send_message(
+                telegram_id, "Изменили цены на товары. Новые цены:", reply_markup=builder.as_markup()
+            )
+        except exceptions.TelegramForbiddenError:
+            logger.info("User %s blocked the bot; deactivating", telegram_id)
+            await self.user_service.deactivate_user_by_telegram_id(telegram_id)
+        except exceptions.TelegramBadRequest as e:
+            if "chat not found" in e.message:
+                logging.warning("Could not send message. Chat %s not found.", telegram_id)
+                await self.user_service.deactivate_user_by_telegram_id(telegram_id)
+            else:
+                raise e
 
     async def delete_product(self, message: "Message", user_id: int):
         """Список товара для удаления."""
@@ -216,6 +230,6 @@ class UzumBot:
         """Удаление товара."""
 
         product_id = int(callback.data.replace("delete_", ""))
-        await self.service.delete_user_product(user_id, product_id)
+        await self.product_service.delete_user_product(user_id, product_id)
         await callback.answer("Товар удален.", show_alert=True)
         await callback.message.delete()
