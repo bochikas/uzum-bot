@@ -36,13 +36,18 @@ class UzumParser:
     async def is_product_unavailable(self, page: Page) -> bool:
         return await page.locator("[data-test-id='empty-results__button']").is_visible()
 
+    async def is_product_out_of_stock(self, page: Page) -> bool:
+        button = page.locator("[data-test-id='button__add-cart']")
+
+        if await button.is_disabled():
+            text = await button.inner_text()
+            return "нет в наличии" in text.lower()
+
+        return False
+
     async def fetch_product_with_page(self, page: Page, url: str) -> ProductMinifiedSchema:
         logger.debug("parsing product started")
-        await page.goto(
-            url,
-            wait_until="domcontentloaded",
-            timeout=60_000,
-        )
+        await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
         await self.check_captcha(page)
         await page.wait_for_timeout(random.uniform(2_000, 5_000))
 
@@ -159,6 +164,9 @@ class UzumParser:
 
                         # Явное сообщение Uzum о недоступности — а не ошибка парсинга.
                         if await self.is_product_unavailable(page=page):
+                            parsed_product.unavailable = True
+                        # Товара нет в наличии
+                        elif await self.is_product_out_of_stock(page=page):
                             parsed_product.unavailable = True
                         else:
                             current_price = await self.parse_product_price(page=page)
