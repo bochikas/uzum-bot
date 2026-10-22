@@ -28,6 +28,14 @@ LOGGING = {
             "backupCount": 3,
         },
     },
+    "loggers": {
+        "aiormq": {
+            "level": "INFO",
+        },
+        "aio_pika": {
+            "level": "INFO",
+        },
+    },
     "root": {
         "handlers": ["console", "file"],
         "level": "DEBUG",
